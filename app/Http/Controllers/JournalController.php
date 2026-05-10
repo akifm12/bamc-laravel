@@ -13,29 +13,71 @@ class JournalController extends Controller
         $companyId = session('company_id');
         if (!$companyId) return redirect('/dashboard')->with('error', 'Please select a company.');
 
-        $dateFrom = $request->get('date_from', date('Y-01-01'));
-        $dateTo   = $request->get('date_to',   date('Y-m-d'));
-        $status   = $request->get('status', 'all');
+        $dateFrom    = $request->get('date_from', date('Y-01-01'));
+        $dateTo      = $request->get('date_to',   date('Y-m-d'));
+        $status      = $request->get('status', 'all');
+        $accountId   = $request->get('account_id');
+        $amountMin   = $request->get('amount_min');
+        $amountMax   = $request->get('amount_max');
+        $reference   = $request->get('reference');
+        $journalType = $request->get('journal_type');
 
         $query = DB::table('journal_entries')
-            ->where('company_id', $companyId)
-            ->where('is_deleted', false)
-            ->whereBetween('entry_date', [$dateFrom, $dateTo])
-            ->orderBy('entry_date', 'desc')
-            ->orderBy('id', 'desc');
+            ->where('journal_entries.company_id', $companyId)
+            ->where('journal_entries.is_deleted', false)
+            ->whereBetween('journal_entries.entry_date', [$dateFrom, $dateTo])
+            ->orderBy('journal_entries.entry_date', 'desc')
+            ->orderBy('journal_entries.id', 'desc');
 
         if ($status !== 'all') {
-            $query->where('status', strtoupper($status));
+            $query->where('journal_entries.status', strtoupper($status));
         }
 
-        $journals = $query->get();
+        if ($journalType) {
+            $query->where('journal_entries.journal_type', strtoupper($journalType));
+        }
 
+        if ($reference) {
+            $query->where(function($q) use ($reference) {
+                $q->where('journal_entries.reference', 'ilike', "%{$reference}%")
+                ->orWhere('journal_entries.description', 'ilike', "%{$reference}%")
+                ->orWhere('journal_entries.entry_number', 'ilike', "%{$reference}%");
+            });
+        }
+
+        if ($accountId) {
+            $query->whereExists(function($q) use ($accountId) {
+                $q->select(DB::raw(1))
+                ->from('journal_lines')
+                ->whereColumn('journal_lines.journal_entry_id', 'journal_entries.id')
+                ->where('journal_lines.account_id', $accountId);
+            });
+        }
+
+        if ($amountMin) {
+            $query->where('journal_entries.total_debit', '>=', $amountMin);
+        }
+
+        if ($amountMax) {
+            $query->where('journal_entries.total_debit', '<=', $amountMax);
+        }
+
+        $journals    = $query->get();
         $totalDebit  = $journals->sum('total_debit');
         $totalCredit = $journals->sum('total_credit');
 
-        return view('journals.index', compact('journals', 'dateFrom', 'dateTo', 'status', 'totalDebit', 'totalCredit'));
-    }
+        $accounts = DB::table('accounts')
+            ->where('company_id', $companyId)
+            ->where('is_active', true)
+            ->orderBy('code')
+            ->get();
 
+        return view('journals.index', compact(
+            'journals', 'dateFrom', 'dateTo', 'status',
+            'totalDebit', 'totalCredit', 'accounts',
+            'accountId', 'amountMin', 'amountMax', 'reference', 'journalType'
+        ));
+    }
     public function create()
     {
         $companyId = session('company_id');
