@@ -234,6 +234,7 @@ public function void($id)
         ->where('company_id', $companyId)
         ->update(['status' => 'VOID', 'is_deleted' => true, 'updated_at' => now()]);
 
+
     return redirect('/journals')->with('success', 'Journal entry voided.');
 }
 public function edit($id)
@@ -245,7 +246,7 @@ public function edit($id)
         ->first();
 
     if (!$journal) abort(404);
-    if ($journal->status !== 'DRAFT') return redirect("/journals/{$id}")->with('error', 'Only draft journal entries can be edited.');
+    if ($journal->status !== 'DRAFT' && !auth()->user()->is_super_admin) return redirect("/journals/{$id}")->with('error', 'Only draft journal entries can be edited.');
 
     $accounts = DB::table('accounts')
         ->where('company_id', $companyId)
@@ -272,7 +273,7 @@ public function update(Request $request, $id)
         ->first();
 
     if (!$journal) abort(404);
-    if ($journal->status !== 'DRAFT') return redirect("/journals/{$id}")->with('error', 'Only draft journal entries can be edited.');
+    if ($journal->status !== 'DRAFT' && !auth()->user()->is_super_admin) return redirect("/journals/{$id}")->with('error', 'Only draft journal entries can be edited.');
 
     $debits  = array_map('floatval', $request->debits ?? []);
     $credits = array_map('floatval', $request->credits ?? []);

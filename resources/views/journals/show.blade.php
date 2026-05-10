@@ -83,7 +83,7 @@
 
     <!-- Actions -->
     <div class="flex gap-3">
-        @if($status === 'draft')
+        @if($status === 'draft' || auth()->user()->is_super_admin)
             <a href="/journals/{{ $journal->id }}/edit"
                 class="text-sm border border-gray-200 text-gray-600 px-4 py-2 rounded hover:bg-gray-50">
                 ✏️ Edit
