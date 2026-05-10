@@ -1,0 +1,207 @@
+@extends('layouts.app')
+
+@section('title', 'New Bill')
+
+@section('content')
+
+<div class="max-w-5xl">
+
+@if(session('error'))
+<div class="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded text-sm">
+    {{ session('error') }}
+</div>
+@endif
+
+<form method="POST" action="/bills">
+    @csrf
+
+    <!-- Header -->
+    <div class="bg-white rounded-lg border border-gray-200 p-5 mb-4">
+        <div class="grid grid-cols-3 gap-4">
+            <div>
+                <label class="text-xs text-gray-500 block mb-1">Vendor *</label>
+                <select name="vendor_id" required
+                    class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
+                    <option value="">— Select Vendor —</option>
+                    @foreach($vendors as $v)
+                        <option value="{{ $v->id }}"
+                            {{ (isset($selectedVendor) && $selectedVendor->id == $v->id) ? 'selected' : '' }}>
+                            {{ $v->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="text-xs text-gray-500 block mb-1">Bill Date *</label>
+                <input type="date" name="bill_date" value="{{ date('Y-m-d') }}" required
+                    class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-gray-500 block mb-1">Due Date</label>
+                <input type="date" name="due_date"
+                    value="{{ date('Y-m-d', strtotime('+30 days')) }}"
+                    class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-gray-500 block mb-1">Vendor Reference</label>
+                <input type="text" name="vendor_ref" placeholder="Vendor invoice number"
+                    class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
+            </div>
+            <div class="col-span-2">
+                <label class="text-xs text-gray-500 block mb-1">Notes</label>
+                <input type="text" name="notes" placeholder="Optional notes"
+                    class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
+            </div>
+        </div>
+    </div>
+
+    <!-- Lines -->
+    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden mb-4">
+        <div class="px-5 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+            <h3 class="font-semibold text-gray-700 text-sm">Bill Lines</h3>
+           <p class="text-xs text-gray-400 mt-1">Select the expense account for each line (e.g. Rent, IT, Salaries). AP account is assigned automatically from the vendor.</p>
+            <button type="button" onclick="addLine()"
+                class="text-xs bg-green-700 text-white px-3 py-1 rounded hover:bg-green-800">➕ Add Line</button>
+        </div>
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-xs text-gray-400 uppercase border-b border-gray-100">
+                    <th class="px-3 py-2 text-left">Description</th>
+                    <th class="px-3 py-2 text-left w-48">Expense Account</th>
+                    <th class="px-3 py-2 text-right w-20">Qty</th>
+                    <th class="px-3 py-2 text-right w-28">Unit Price</th>
+                    <th class="px-3 py-2 text-right w-20">VAT %</th>
+                    <th class="px-3 py-2 text-right w-28">VAT Amt</th>
+                    <th class="px-3 py-2 text-right w-28">Total</th>
+                    <th class="px-3 py-2 w-8"></th>
+                </tr>
+            </thead>
+            <tbody id="lines-body"></tbody>
+            <tfoot>
+                <tr class="bg-gray-50 border-t border-gray-200">
+                    <td colspan="5" class="px-3 py-2 text-right text-xs text-gray-500">Subtotal</td>
+                    <td class="px-3 py-2 text-right" id="total-vat">0.00</td>
+                    <td class="px-3 py-2 text-right font-semibold" id="total-subtotal">0.00</td>
+                    <td></td>
+                </tr>
+                <tr class="bg-gray-50 font-bold">
+                    <td colspan="6" class="px-3 py-2 text-right text-sm">TOTAL (AED)</td>
+                    <td class="px-3 py-2 text-right text-green-700" id="total-amount">0.00</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <div class="flex gap-3">
+        <button type="submit"
+            class="bg-green-700 text-white text-sm px-5 py-2 rounded hover:bg-green-800">
+            💾 Save as Draft
+        </button>
+        <a href="/bills" class="text-sm text-gray-500 px-4 py-2 hover:text-gray-700">Cancel</a>
+    </div>
+</form>
+</div>
+
+<script>
+const accountGroups = {
+    @foreach($accounts as $type => $accts)
+    "{{ $type }}": [
+        @foreach($accts as $a)
+        { id: {{ $a->id }}, code: "{{ $a->code }}", name: "{{ addslashes($a->name) }}" },
+        @endforeach
+    ],
+    @endforeach
+};
+
+const typeLabels = {
+    'ASSET': 'Assets', 'LIABILITY': 'Liabilities',
+    'EQUITY': 'Equity', 'REVENUE': 'Revenue', 'EXPENSE': 'Expenses'
+};
+
+function buildAccountSelect(index) {
+    let html = `<select name="accounts[${index}]" class="w-full border border-gray-200 rounded px-2 py-1 text-xs" onchange="updateTotals()">`;
+    html += `<option value="">— Account —</option>`;
+    for (const [type, accounts] of Object.entries(accountGroups)) {
+        html += `<optgroup label="${typeLabels[type] || type}">`;
+        accounts.forEach(a => {
+            html += `<option value="${a.id}">${a.code} — ${a.name}</option>`;
+        });
+        html += `</optgroup>`;
+    }
+    html += `</select>`;
+    return html;
+}
+
+let lineCount = 0;
+
+function addLine() {
+    const tbody = document.getElementById('lines-body');
+    const i = lineCount++;
+    const tr = document.createElement('tr');
+    tr.className = 'border-b border-gray-50 hover:bg-gray-50';
+    tr.id = `line-${i}`;
+    tr.innerHTML = `
+        <td class="px-3 py-2">
+            <input type="text" name="descriptions[${i}]" placeholder="Description"
+                class="w-full border border-gray-200 rounded px-2 py-1 text-sm">
+        </td>
+        <td class="px-3 py-2">${buildAccountSelect(i)}</td>
+        <td class="px-3 py-2">
+            <input type="number" name="quantities[${i}]" value="1" min="0" step="0.01"
+                class="w-full border border-gray-200 rounded px-2 py-1 text-sm text-right"
+                onchange="updateTotals()">
+        </td>
+        <td class="px-3 py-2">
+            <input type="number" name="unit_prices[${i}]" value="0.00" min="0" step="0.01"
+                class="w-full border border-gray-200 rounded px-2 py-1 text-sm text-right"
+                onchange="updateTotals()" onfocus="if(this.value=='0.00')this.value=''">
+        </td>
+        <td class="px-3 py-2">
+            <select name="vat_rates[${i}]" class="w-full border border-gray-200 rounded px-2 py-1 text-xs" onchange="updateTotals()">
+                <option value="0">0%</option>
+                <option value="5" selected>5%</option>
+            </select>
+        </td>
+        <td class="px-3 py-2 text-right text-xs text-gray-600" id="vat-${i}">0.00</td>
+        <td class="px-3 py-2 text-right text-xs font-medium" id="linetotal-${i}">0.00</td>
+        <td class="px-3 py-2 text-center">
+            <button type="button" onclick="removeLine(${i})"
+                class="text-red-400 hover:text-red-600 text-xs">✕</button>
+        </td>
+    `;
+    tbody.appendChild(tr);
+    updateTotals();
+}
+
+function removeLine(i) {
+    const tr = document.getElementById(`line-${i}`);
+    if (tr) tr.remove();
+    updateTotals();
+}
+
+function updateTotals() {
+    let subtotal = 0, totalVat = 0;
+    document.querySelectorAll('[id^="line-"]').forEach(row => {
+        const i = row.id.replace('line-', '');
+        const qty   = parseFloat(document.querySelector(`[name="quantities[${i}]"]`)?.value || 0);
+        const price = parseFloat(document.querySelector(`[name="unit_prices[${i}]"]`)?.value || 0);
+        const vat   = parseFloat(document.querySelector(`[name="vat_rates[${i}]"]`)?.value || 0);
+        const lineAmount = qty * price;
+        const vatAmt     = lineAmount * (vat / 100);
+        subtotal  += lineAmount;
+        totalVat  += vatAmt;
+        const vatEl = document.getElementById(`vat-${i}`);
+        const totEl = document.getElementById(`linetotal-${i}`);
+        if (vatEl) vatEl.textContent = vatAmt.toFixed(2);
+        if (totEl) totEl.textContent = (lineAmount + vatAmt).toFixed(2);
+    });
+    document.getElementById('total-subtotal').textContent = subtotal.toFixed(2);
+    document.getElementById('total-vat').textContent      = totalVat.toFixed(2);
+    document.getElementById('total-amount').textContent   = (subtotal + totalVat).toFixed(2);
+}
+
+addLine();
+</script>
+
+@endsection
