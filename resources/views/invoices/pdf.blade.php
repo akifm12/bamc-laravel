@@ -127,7 +127,7 @@
 <!-- TITLE BAR -->
 <table class="title-table">
     <tr>
-        <td><span class="invoice-title">Tax Invoice</span></td>
+        <td><span class="invoice-title">{{ $company->trn ? 'Tax Invoice' : 'Invoice' }}</span></td>
         <td style="text-align:right;"><span class="invoice-number">{{ $invoice->invoice_number }}</span></td>
     </tr>
 </table>
