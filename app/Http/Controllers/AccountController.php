@@ -10,6 +10,7 @@ class AccountController extends Controller
 public function index()
 {
     $companyId = session('company_id');
+	\Log::info("ACCOUNTS INDEX", ['company_id' => $companyId, 'session' => session()->all()]);
     if (!$companyId) return redirect('/dashboard')->with('error', 'Please select a company first.');
 
     $accounts = DB::table('accounts')
@@ -51,7 +52,7 @@ public function index()
     }
 
     $grouped = collect($organized)->groupBy('account_type');
-
+\Log::info("ACCOUNTS GROUPED", ['count' => $accounts->count(), 'organized' => count($organized), 'grouped_keys' => $grouped->keys()]);
     $typeTotals = [];
     foreach ($grouped as $type => $accts) {
         $typeTotals[$type] = $accts->count();

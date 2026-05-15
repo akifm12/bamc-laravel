@@ -124,7 +124,6 @@ class InvoiceController extends Controller
 
         $totalAmount = $subtotal + $totalVat;
         $dueDate     = $request->due_date ?? date('Y-m-d', strtotime('+' . ($customer->payment_terms_days ?? 30) . ' days', strtotime($request->invoice_date)));
-
         $currentYear = date('Y', strtotime($request->invoice_date));
 
         $seq = DB::table('number_sequences')
@@ -149,18 +148,21 @@ class InvoiceController extends Controller
                 ->first();
         }
 
-        if ($seq->current_year != $currentYear) {
-            DB::table('number_sequences')
-                ->where('id', $seq->id)
-                ->update(['current_number' => 0, 'current_year' => $currentYear]);
-            $nextNum = 1;
-        } else {
-            $nextNum = $seq->current_number + 1;
-        }
+			// Derive next number from actual existing invoices for this company/year
+			// This is safe for backdated entries and avoids sequence drift
+			$lastInvoice = DB::table('invoices')
+    			->where('company_id', $companyId)
+    			->whereYear('invoice_date', $currentYear)
+    			->orderBy('id', 'desc')
+    			->value('invoice_number');
 
-        DB::table('number_sequences')
-            ->where('id', $seq->id)
-            ->update(['current_number' => $nextNum]);
+			if ($lastInvoice) {
+    			// Extract the sequence number from the end of the invoice number
+    			preg_match('/(\d+)$/', $lastInvoice, $matches);
+    			$nextNum = isset($matches[1]) ? intval($matches[1]) + 1 : 1;
+			} else {
+    			$nextNum = 1;
+			}
 
         $clientNum     = str_pad($customer->client_number ?? '00', 2, '0', STR_PAD_LEFT);
         $acronym       = $customer->client_acronym ?? 'INV';
@@ -173,68 +175,79 @@ class InvoiceController extends Controller
             ->where('end_date', '>=', $request->invoice_date)
             ->first();
 
-        DB::transaction(function () use (
-            $companyId, $request, $customer, $company, $lines, $subtotal, $totalVat,
-            $totalAmount, $dueDate, $invoiceNumber, $period
-        ) {
-            $invoiceId = DB::table('invoices')->insertGetId([
-                'company_id'          => $companyId,
-                'customer_id'         => $request->customer_id,
-                'period_id'           => $period?->id,
-                'invoice_number'      => $invoiceNumber,
-                'invoice_type'        => 'TAX_INVOICE',
-                'invoice_date'        => $request->invoice_date,
-                'due_date'            => $dueDate,
-                'status'              => 'DRAFT',
-                'supplier_name'       => $company->name ?? session('company_name'),
-                'supplier_trn'        => $company->trn ?? null,
-                'supplier_address'    => $company->address ?? null,
-                'customer_name'       => $customer->name,
-                'customer_trn'        => $customer->trn,
-                'customer_address'    => implode(', ', array_filter([
-                    $customer->address_line1,
-                    $customer->city,
-                    $customer->emirate,
-                    $customer->country,
-                ])),
-                'currency_code'       => 'AED',
-                'exchange_rate'       => 1.0,
-                'subtotal'            => $subtotal,
-                'taxable_amount'      => $subtotal,
-                'vat_amount_standard' => $totalVat,
-                'total_vat_amount'    => $totalVat,
-                'total_amount'        => $totalAmount,
-                'amount_paid'         => 0,
-                'amount_due'          => $totalAmount,
-                'payment_terms'       => ($customer->payment_terms_days ?? 30) . ' days',
-                'notes'               => $request->notes,
-                'po_number'           => $request->po_number,
-                'discount_amount'     => 0,
-                'is_reverse_charge'   => false,
-                'is_deleted'          => false,
-                'created_by_id'       => auth()->user()->id,
-                'created_at'          => now(),
-                'updated_at'          => now(),
-            ]);
+        if (!$period) {
+            return redirect()->back()->withInput()->with('error', 'No accounting period found for the invoice date. Please create a fiscal year and periods first.');
+        }
 
-            foreach ($lines as $i => $line) {
-                DB::table('invoice_lines')->insert([
-                    'invoice_id'   => $invoiceId,
-                    'company_id'   => $companyId,
-                    'account_id'   => $line['account_id'],
-                    'line_number'  => $i + 1,
-                    'description'  => $line['description'],
-                    'quantity'     => $line['quantity'],
-                    'unit_price'   => $line['unit_price'],
-                    'line_amount'  => $line['line_amount'],
-                    'vat_rate'     => $line['vat_rate'],
-                    'vat_amount'   => $line['vat_amount'],
-                    'total_amount' => $line['total_amount'],
+        try {
+            DB::transaction(function () use (
+                $companyId, $request, $customer, $company, $lines, $subtotal, $totalVat,
+                $totalAmount, $dueDate, $invoiceNumber, $period
+            ) {
+                $invoiceId = DB::table('invoices')->insertGetId([
+                    'company_id'          => $companyId,
+                    'customer_id'         => $request->customer_id,
+                    'period_id'           => $period->id,
+                    'invoice_number'      => $invoiceNumber,
+                    'invoice_type'        => 'TAX_INVOICE',
+                    'invoice_date'        => $request->invoice_date,
+                    'due_date'            => $dueDate,
+                    'status'              => 'DRAFT',
+                    'supplier_name'       => $company->name ?? session('company_name'),
+                    'supplier_trn'        => $company->trn ?? null,
+                    'supplier_address'    => $company->address ?? null,
+                    'customer_name'       => $customer->name,
+                    'customer_trn'        => $customer->trn,
+                    'customer_address'    => implode(', ', array_filter([
+                        $customer->address_line1,
+                        $customer->city,
+                        $customer->emirate,
+                        $customer->country,
+                    ])),
+                    'currency_code'       => 'AED',
+                    'exchange_rate'       => 1.0,
+                    'subtotal'            => $subtotal,
+                    'taxable_amount'      => $subtotal,
+                    'vat_amount_standard' => $totalVat,
+                    'total_vat_amount'    => $totalVat,
+                    'total_amount'        => $totalAmount,
+                    'amount_paid'         => 0,
+                    'amount_due'          => $totalAmount,
+                    'payment_terms'       => ($customer->payment_terms_days ?? 30) . ' days',
+                    'notes'               => $request->notes,
+                    'po_number'           => $request->po_number,
+                    'discount_amount'     => 0,
+                    'is_reverse_charge'   => false,
+                    'is_deleted'          => false,
+                    'created_by_id'       => auth()->user()->id,
+                    'created_at'          => now(),
+                    'updated_at'          => now(),
                 ]);
-            }
-        });
 
-        return redirect('/invoices')->with('success', "Invoice {$invoiceNumber} created successfully.");
+                foreach ($lines as $i => $line) {
+                    DB::table('invoice_lines')->insert([
+                        'invoice_id'   => $invoiceId,
+                        'company_id'   => $companyId,
+                        'account_id'   => $line['account_id'],
+                        'line_number'  => $i + 1,
+                        'description'  => $line['description'],
+                        'quantity'     => $line['quantity'],
+                        'unit_price'   => $line['unit_price'],
+                        'line_amount'  => $line['line_amount'],
+                        'vat_rate'     => $line['vat_rate'],
+                        'vat_amount'   => $line['vat_amount'],
+                        'total_amount' => $line['total_amount'],
+                    ]);
+                }
+            });
+
+            return redirect('/invoices')->with('success', "Invoice {$invoiceNumber} created successfully.");
+
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            return redirect()->back()->withInput()->with('error', 'Invoice number already exists. Please try again.');
+        } catch (\Exception $e) {
+            return redirect()->back()->withInput()->with('error', 'Failed to create invoice: ' . $e->getMessage());
+        }
     }
 
     public function show($id)
@@ -317,38 +330,56 @@ class InvoiceController extends Controller
             ->where('end_date', '>=', $invoice->invoice_date)
             ->first();
 
-        DB::transaction(function () use ($companyId, $invoice, $lines, $period, $id) {
-            $count    = DB::table('journal_entries')->where('company_id', $companyId)->count() + 1;
-            $jeNumber = 'JE-' . date('Y') . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
+        if (!$period) {
+            return redirect("/invoices/{$id}")->with('error', 'No accounting period found for this invoice date. Please create a fiscal year and periods first.');
+        }
 
-            $jeId = DB::table('journal_entries')->insertGetId([
-                'company_id'    => $companyId,
-                'period_id'     => $period?->id,
-                'entry_number'  => $jeNumber,
-                'entry_date'    => $invoice->invoice_date,
-                'journal_type'  => 'GENERAL',
-                'status'        => 'POSTED',
-                'description'   => "Invoice {$invoice->invoice_number} — {$invoice->customer_name}",
-                'reference'     => $invoice->invoice_number,
-                'total_debit'   => $invoice->total_amount,
-                'total_credit'  => $invoice->total_amount,
-                'currency_code' => 'AED',
-                'exchange_rate' => 1.0,
-                'is_reversal'   => false,
-                'is_recurring'  => false,
-                'is_deleted'    => false,
-                'created_by_id' => auth()->user()->id,
-                'created_at'    => now(),
-                'updated_at'    => now(),
-            ]);
+        // Resolve AR account — customer specific or company default
+        $arAccountId = $invoice->ar_account_id;
+        if (!$arAccountId) {
+            $arAccountId = DB::table('accounts')
+                ->where('company_id', $companyId)
+                ->where('is_receivable', true)
+                ->value('id');
+        }
 
-            $lineNum = 1;
+        if (!$arAccountId) {
+            return redirect("/invoices/{$id}")->with('error', 'No Accounts Receivable account found. Please create one in the Chart of Accounts and mark it as Receivable.');
+        }
 
-            if ($invoice->ar_account_id) {
+        try {
+            DB::transaction(function () use ($companyId, $invoice, $lines, $period, $id, $arAccountId) {
+                $count    = DB::table('journal_entries')->where('company_id', $companyId)->count() + 1;
+                $jeNumber = 'JE-' . date('Y', strtotime($invoice->invoice_date)) . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
+
+                $jeId = DB::table('journal_entries')->insertGetId([
+                    'company_id'    => $companyId,
+                    'period_id'     => $period->id,
+                    'entry_number'  => $jeNumber,
+                    'entry_date'    => $invoice->invoice_date,
+                    'journal_type'  => 'GENERAL',
+                    'status'        => 'POSTED',
+                    'description'   => "Invoice {$invoice->invoice_number} — {$invoice->customer_name}",
+                    'reference'     => $invoice->invoice_number,
+                    'total_debit'   => $invoice->total_amount,
+                    'total_credit'  => $invoice->total_amount,
+                    'currency_code' => 'AED',
+                    'exchange_rate' => 1.0,
+                    'is_reversal'   => false,
+                    'is_recurring'  => false,
+                    'is_deleted'    => false,
+                    'created_by_id' => auth()->user()->id,
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
+
+                $lineNum = 1;
+
+                // DR Accounts Receivable
                 DB::table('journal_lines')->insert([
                     'journal_entry_id' => $jeId,
                     'company_id'       => $companyId,
-                    'account_id'       => $invoice->ar_account_id,
+                    'account_id'       => $arAccountId,
                     'line_number'      => $lineNum++,
                     'description'      => "AR — {$invoice->customer_name}",
                     'debit_amount'     => $invoice->total_amount,
@@ -357,58 +388,63 @@ class InvoiceController extends Controller
                     'exchange_rate'    => 1.0,
                     'is_reconciled'    => false,
                 ]);
-            }
 
-            foreach ($lines as $line) {
-                if (!$line->account_id) continue;
-                DB::table('journal_lines')->insert([
-                    'journal_entry_id' => $jeId,
-                    'company_id'       => $companyId,
-                    'account_id'       => $line->account_id,
-                    'line_number'      => $lineNum++,
-                    'description'      => $line->description,
-                    'debit_amount'     => 0,
-                    'credit_amount'    => $line->line_amount,
-                    'currency_code'    => 'AED',
-                    'exchange_rate'    => 1.0,
-                    'is_reconciled'    => false,
-                ]);
-            }
-
-            if ($invoice->total_vat_amount > 0) {
-                $vatAccount = DB::table('accounts')
-                    ->where('company_id', $companyId)
-                    ->where('account_type', 'LIABILITY')
-                    ->where(function($q) {
-                        $q->where('name', 'like', '%VAT%')
-                          ->orWhere('name', 'like', '%Tax%');
-                    })
-                    ->first();
-
-                if ($vatAccount) {
+                // CR Revenue accounts per line
+                foreach ($lines as $line) {
+                    if (!$line->account_id) continue;
                     DB::table('journal_lines')->insert([
                         'journal_entry_id' => $jeId,
                         'company_id'       => $companyId,
-                        'account_id'       => $vatAccount->id,
+                        'account_id'       => $line->account_id,
                         'line_number'      => $lineNum++,
-                        'description'      => 'Output VAT',
+                        'description'      => $line->description,
                         'debit_amount'     => 0,
-                        'credit_amount'    => $invoice->total_vat_amount,
+                        'credit_amount'    => $line->line_amount,
                         'currency_code'    => 'AED',
                         'exchange_rate'    => 1.0,
                         'is_reconciled'    => false,
                     ]);
                 }
-            }
 
-            DB::table('invoices')->where('id', $id)->update([
-                'status'           => 'APPROVED',
-                'journal_entry_id' => $jeId,
-                'updated_at'       => now(),
-            ]);
-        });
+                // CR VAT liability if applicable
+                if ($invoice->total_vat_amount > 0) {
+                    $vatAccount = DB::table('accounts')
+                        ->where('company_id', $companyId)
+                        ->where('account_type', 'LIABILITY')
+                        ->where(function($q) {
+                            $q->where('name', 'like', '%VAT%')
+                              ->orWhere('name', 'like', '%Tax%');
+                        })
+                        ->first();
 
-        return redirect("/invoices/{$id}")->with('success', 'Invoice approved and journal entry created. Use the Send Email button to email the invoice to the customer.');
+                    if ($vatAccount) {
+                        DB::table('journal_lines')->insert([
+                            'journal_entry_id' => $jeId,
+                            'company_id'       => $companyId,
+                            'account_id'       => $vatAccount->id,
+                            'line_number'      => $lineNum++,
+                            'description'      => 'Output VAT',
+                            'debit_amount'     => 0,
+                            'credit_amount'    => $invoice->total_vat_amount,
+                            'currency_code'    => 'AED',
+                            'exchange_rate'    => 1.0,
+                            'is_reconciled'    => false,
+                        ]);
+                    }
+                }
+
+                DB::table('invoices')->where('id', $id)->update([
+                    'status'           => 'APPROVED',
+                    'journal_entry_id' => $jeId,
+                    'updated_at'       => now(),
+                ]);
+            });
+
+            return redirect("/invoices/{$id}")->with('success', 'Invoice approved and journal entry created. Use the Send Email button to email the invoice to the customer.');
+
+        } catch (\Exception $e) {
+            return redirect("/invoices/{$id}")->with('error', 'Approval failed: ' . $e->getMessage());
+        }
     }
 
     public function sendEmail($id)
@@ -469,7 +505,6 @@ class InvoiceController extends Controller
                 'elapsed_ms' => round((microtime(true) - $startTime) * 1000),
             ]);
 
-            // Purge any stale SMTP connection from PHP-FPM worker reuse
             app()->make('mail.manager')->purge('smtp');
 
             \Log::info("INVOICE EMAIL - Connecting to SMTP (fresh connection)", [
@@ -478,16 +513,15 @@ class InvoiceController extends Controller
                 'elapsed_ms' => round((microtime(true) - $startTime) * 1000),
             ]);
 
-            // Auto-retry once on connection timeout (Contabo NAT drops idle routes)
             $attempt = 0;
             while (true) {
                 try {
                     $attempt++;
                     Mail::mailer('smtp')->to($customer->email)->send(new InvoiceApproved($invoice, $company, $tmpPath));
-                    break; // success
+                    break;
                 } catch (\Symfony\Component\Mailer\Exception\TransportException $te) {
                     app()->make('mail.manager')->purge('smtp');
-                    if ($attempt >= 2) throw $te; // give up after 2 tries
+                    if ($attempt >= 2) throw $te;
                     \Log::warning("INVOICE EMAIL - SMTP connection failed, retrying", [
                         'attempt'    => $attempt,
                         'error'      => $te->getMessage(),
@@ -497,9 +531,7 @@ class InvoiceController extends Controller
                 }
             }
 
-            // Close connection cleanly after send — no stale socket left behind
             app()->make('mail.manager')->purge('smtp');
-
             @unlink($tmpPath);
 
             $elapsed = round((microtime(true) - $startTime) * 1000);
@@ -575,76 +607,100 @@ class InvoiceController extends Controller
 
         $amount = floatval($request->amount);
 
+        // Resolve AR account
+        $arAccountId = $invoice->ar_account_id;
+        if (!$arAccountId) {
+            $arAccountId = DB::table('accounts')
+                ->where('company_id', $companyId)
+                ->where('is_receivable', true)
+                ->value('id');
+        }
+
+        if (!$arAccountId) {
+            return redirect("/invoices/{$id}")->with('error', 'No Accounts Receivable account found. Please create one in the Chart of Accounts.');
+        }
+
         $period = DB::table('accounting_periods')
             ->where('company_id', $companyId)
             ->where('start_date', '<=', $request->payment_date)
             ->where('end_date', '>=', $request->payment_date)
             ->first();
 
-        DB::transaction(function () use ($companyId, $invoice, $amount, $request, $period, $id) {
-            $count    = DB::table('journal_entries')->where('company_id', $companyId)->count() + 1;
-            $jeNumber = 'JE-' . date('Y') . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
+        if (!$period) {
+            return redirect("/invoices/{$id}")->with('error', 'No accounting period found for the payment date.');
+        }
 
-            $jeId = DB::table('journal_entries')->insertGetId([
-                'company_id'    => $companyId,
-                'period_id'     => $period?->id,
-                'entry_number'  => $jeNumber,
-                'entry_date'    => $request->payment_date,
-                'journal_type'  => 'BANK_RECEIPT',
-                'status'        => 'POSTED',
-                'description'   => "Payment received — {$invoice->invoice_number}",
-                'reference'     => $invoice->invoice_number,
-                'total_debit'   => $amount,
-                'total_credit'  => $amount,
-                'currency_code' => 'AED',
-                'exchange_rate' => 1.0,
-                'is_reversal'   => false,
-                'is_recurring'  => false,
-                'is_deleted'    => false,
-                'created_by_id' => auth()->user()->id,
-                'created_at'    => now(),
-                'updated_at'    => now(),
-            ]);
+        try {
+            DB::transaction(function () use ($companyId, $invoice, $amount, $request, $period, $id, $arAccountId) {
+                $count    = DB::table('journal_entries')->where('company_id', $companyId)->count() + 1;
+                $jeNumber = 'JE-' . date('Y', strtotime($request->payment_date)) . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
 
-            DB::table('journal_lines')->insert([
-                'journal_entry_id' => $jeId,
-                'company_id'       => $companyId,
-                'account_id'       => $request->gl_account_id,
-                'line_number'      => 1,
-                'description'      => "Payment received — {$invoice->invoice_number}",
-                'debit_amount'     => $amount,
-                'credit_amount'    => 0,
-                'currency_code'    => 'AED',
-                'exchange_rate'    => 1.0,
-                'is_reconciled'    => false,
-            ]);
+                $jeId = DB::table('journal_entries')->insertGetId([
+                    'company_id'    => $companyId,
+                    'period_id'     => $period->id,
+                    'entry_number'  => $jeNumber,
+                    'entry_date'    => $request->payment_date,
+                    'journal_type'  => 'BANK_RECEIPT',
+                    'status'        => 'POSTED',
+                    'description'   => "Payment received — {$invoice->invoice_number}",
+                    'reference'     => $invoice->invoice_number,
+                    'total_debit'   => $amount,
+                    'total_credit'  => $amount,
+                    'currency_code' => 'AED',
+                    'exchange_rate' => 1.0,
+                    'is_reversal'   => false,
+                    'is_recurring'  => false,
+                    'is_deleted'    => false,
+                    'created_by_id' => auth()->user()->id,
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
 
-            DB::table('journal_lines')->insert([
-                'journal_entry_id' => $jeId,
-                'company_id'       => $companyId,
-                'account_id'       => $invoice->ar_account_id,
-                'line_number'      => 2,
-                'description'      => "AR cleared — {$invoice->customer_name}",
-                'debit_amount'     => 0,
-                'credit_amount'    => $amount,
-                'currency_code'    => 'AED',
-                'exchange_rate'    => 1.0,
-                'is_reconciled'    => false,
-            ]);
+                // DR Bank/Cash
+                DB::table('journal_lines')->insert([
+                    'journal_entry_id' => $jeId,
+                    'company_id'       => $companyId,
+                    'account_id'       => $request->gl_account_id,
+                    'line_number'      => 1,
+                    'description'      => "Payment received — {$invoice->invoice_number}",
+                    'debit_amount'     => $amount,
+                    'credit_amount'    => 0,
+                    'currency_code'    => 'AED',
+                    'exchange_rate'    => 1.0,
+                    'is_reconciled'    => false,
+                ]);
 
-            $newPaid = $invoice->amount_paid + $amount;
-            $newDue  = $invoice->total_amount - $newPaid;
-            $status  = $newDue <= 0 ? 'PAID' : 'PARTIAL';
+                // CR AR
+                DB::table('journal_lines')->insert([
+                    'journal_entry_id' => $jeId,
+                    'company_id'       => $companyId,
+                    'account_id'       => $arAccountId,
+                    'line_number'      => 2,
+                    'description'      => "AR cleared — {$invoice->customer_name}",
+                    'debit_amount'     => 0,
+                    'credit_amount'    => $amount,
+                    'currency_code'    => 'AED',
+                    'exchange_rate'    => 1.0,
+                    'is_reconciled'    => false,
+                ]);
 
-            DB::table('invoices')->where('id', $id)->update([
-                'amount_paid' => $newPaid,
-                'amount_due'  => max(0, $newDue),
-                'status'      => $status,
-                'updated_at'  => now(),
-            ]);
-        });
+                $newPaid = $invoice->amount_paid + $amount;
+                $newDue  = $invoice->total_amount - $newPaid;
+                $status  = $newDue <= 0 ? 'PAID' : 'PARTIAL';
 
-        return redirect("/invoices/{$id}")->with('success', 'Payment recorded successfully.');
+                DB::table('invoices')->where('id', $id)->update([
+                    'amount_paid' => $newPaid,
+                    'amount_due'  => max(0, $newDue),
+                    'status'      => $status,
+                    'updated_at'  => now(),
+                ]);
+            });
+
+            return redirect("/invoices/{$id}")->with('success', 'Payment recorded successfully.');
+
+        } catch (\Exception $e) {
+            return redirect("/invoices/{$id}")->with('error', 'Payment failed: ' . $e->getMessage());
+        }
     }
 
     public function edit($id)
@@ -652,7 +708,9 @@ class InvoiceController extends Controller
         $companyId = session('company_id');
         $invoice   = DB::table('invoices')->where('id', $id)->where('company_id', $companyId)->first();
         if (!$invoice) abort(404);
-        if ($invoice->status !== 'DRAFT') return redirect("/invoices/{$id}")->with('error', 'Only draft invoices can be edited.');
+        if ($invoice->status !== 'DRAFT' && !auth()->user()->is_super_admin) {
+            return redirect("/invoices/{$id}")->with('error', 'Only draft invoices can be edited.');
+        }
 
         $customers = DB::table('customers')
             ->where('company_id', $companyId)
@@ -695,7 +753,9 @@ class InvoiceController extends Controller
         $companyId = session('company_id');
         $invoice   = DB::table('invoices')->where('id', $id)->where('company_id', $companyId)->first();
         if (!$invoice) abort(404);
-        if ($invoice->status !== 'DRAFT') return redirect("/invoices/{$id}")->with('error', 'Only draft invoices can be edited.');
+        if ($invoice->status !== 'DRAFT' && !auth()->user()->is_super_admin) {
+            return redirect("/invoices/{$id}")->with('error', 'Only draft invoices can be edited.');
+        }
 
         $customer = DB::table('customers')->find($request->customer_id);
         $company  = DB::table('companies')->find($companyId);
@@ -729,52 +789,57 @@ class InvoiceController extends Controller
         $totalAmount = $subtotal + $totalVat;
         $dueDate     = $request->due_date ?? date('Y-m-d', strtotime('+' . ($customer->payment_terms_days ?? 30) . ' days', strtotime($request->invoice_date)));
 
-        DB::transaction(function () use ($companyId, $id, $request, $customer, $company, $lines, $subtotal, $totalVat, $totalAmount, $dueDate) {
-            DB::table('invoices')->where('id', $id)->update([
-                'customer_id'         => $request->customer_id,
-                'invoice_date'        => $request->invoice_date,
-                'due_date'            => $dueDate,
-                'supplier_name'       => $company->name,
-                'supplier_trn'        => $company->trn,
-                'customer_name'       => $customer->name,
-                'customer_trn'        => $customer->trn,
-                'customer_address'    => implode(', ', array_filter([
-                    $customer->address_line1,
-                    $customer->city,
-                    $customer->emirate,
-                    $customer->country,
-                ])),
-                'subtotal'            => $subtotal,
-                'taxable_amount'      => $subtotal,
-                'vat_amount_standard' => $totalVat,
-                'total_vat_amount'    => $totalVat,
-                'total_amount'        => $totalAmount,
-                'amount_due'          => $totalAmount,
-                'discount_amount'     => 0,
-                'notes'               => $request->notes,
-                'po_number'           => $request->po_number,
-                'updated_at'          => now(),
-            ]);
-
-            DB::table('invoice_lines')->where('invoice_id', $id)->delete();
-
-            foreach ($lines as $i => $line) {
-                DB::table('invoice_lines')->insert([
-                    'invoice_id'   => $id,
-                    'company_id'   => $companyId,
-                    'account_id'   => $line['account_id'],
-                    'line_number'  => $i + 1,
-                    'description'  => $line['description'],
-                    'quantity'     => $line['quantity'],
-                    'unit_price'   => $line['unit_price'],
-                    'line_amount'  => $line['line_amount'],
-                    'vat_rate'     => $line['vat_rate'],
-                    'vat_amount'   => $line['vat_amount'],
-                    'total_amount' => $line['total_amount'],
+        try {
+            DB::transaction(function () use ($companyId, $id, $request, $customer, $company, $lines, $subtotal, $totalVat, $totalAmount, $dueDate) {
+                DB::table('invoices')->where('id', $id)->update([
+                    'customer_id'         => $request->customer_id,
+                    'invoice_date'        => $request->invoice_date,
+                    'due_date'            => $dueDate,
+                    'supplier_name'       => $company->name,
+                    'supplier_trn'        => $company->trn,
+                    'customer_name'       => $customer->name,
+                    'customer_trn'        => $customer->trn,
+                    'customer_address'    => implode(', ', array_filter([
+                        $customer->address_line1,
+                        $customer->city,
+                        $customer->emirate,
+                        $customer->country,
+                    ])),
+                    'subtotal'            => $subtotal,
+                    'taxable_amount'      => $subtotal,
+                    'vat_amount_standard' => $totalVat,
+                    'total_vat_amount'    => $totalVat,
+                    'total_amount'        => $totalAmount,
+                    'amount_due'          => $totalAmount,
+                    'discount_amount'     => 0,
+                    'notes'               => $request->notes,
+                    'po_number'           => $request->po_number,
+                    'updated_at'          => now(),
                 ]);
-            }
-        });
 
-        return redirect("/invoices/{$id}")->with('success', 'Invoice updated.');
+                DB::table('invoice_lines')->where('invoice_id', $id)->delete();
+
+                foreach ($lines as $i => $line) {
+                    DB::table('invoice_lines')->insert([
+                        'invoice_id'   => $id,
+                        'company_id'   => $companyId,
+                        'account_id'   => $line['account_id'],
+                        'line_number'  => $i + 1,
+                        'description'  => $line['description'],
+                        'quantity'     => $line['quantity'],
+                        'unit_price'   => $line['unit_price'],
+                        'line_amount'  => $line['line_amount'],
+                        'vat_rate'     => $line['vat_rate'],
+                        'vat_amount'   => $line['vat_amount'],
+                        'total_amount' => $line['total_amount'],
+                    ]);
+                }
+            });
+
+            return redirect("/invoices/{$id}")->with('success', 'Invoice updated.');
+
+        } catch (\Exception $e) {
+            return redirect("/invoices/{$id}")->with('error', 'Update failed: ' . $e->getMessage());
+        }
     }
 }

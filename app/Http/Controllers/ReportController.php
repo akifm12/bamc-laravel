@@ -24,7 +24,37 @@ class ReportController extends Controller
         $dateFrom = $request->get('date_from', date('Y-01-01'));
         $dateTo   = $request->get('date_to',   date('Y-m-d'));
 
-        $rows = DB::select("
+        // Balance sheet accounts — cumulative from beginning, including closing entries
+        // Retained Earnings excluded (it's a closing entry construct, not a live TB account)
+        $bsRows = DB::select("
+            SELECT
+                a.code, a.name, a.account_type,
+                COALESCE(SUM(jl.debit_amount), 0)  AS total_debit,
+                COALESCE(SUM(jl.credit_amount), 0) AS total_credit
+            FROM accounts a
+            LEFT JOIN (
+                SELECT jl.*
+                FROM journal_lines jl
+                JOIN journal_entries je ON je.id = jl.journal_entry_id
+                WHERE je.company_id = ?
+                  AND je.status = 'POSTED'
+                  AND je.entry_date <= ?
+            ) jl ON jl.account_id = a.id
+            WHERE a.company_id = ?
+              AND a.account_type IN ('ASSET', 'LIABILITY', 'EQUITY')
+              AND a.code != '5100'
+            GROUP BY a.id, a.code, a.name, a.account_type
+            HAVING COALESCE(SUM(jl.debit_amount), 0) > 0
+                OR COALESCE(SUM(jl.credit_amount), 0) > 0
+            ORDER BY
+                CASE a.account_type
+                    WHEN 'ASSET' THEN 1 WHEN 'LIABILITY' THEN 2
+                    WHEN 'EQUITY' THEN 3 ELSE 4
+                END, a.code
+        ", [$companyId, $dateTo, $companyId]);
+
+        // P&L accounts — only within date range, excluding closing entries
+        $plRows = DB::select("
             SELECT
                 a.code, a.name, a.account_type,
                 COALESCE(SUM(jl.debit_amount), 0)  AS total_debit,
@@ -41,17 +71,17 @@ class ReportController extends Controller
                   AND je.entry_date <= ?
             ) jl ON jl.account_id = a.id
             WHERE a.company_id = ?
+              AND a.account_type IN ('REVENUE', 'EXPENSE')
             GROUP BY a.id, a.code, a.name, a.account_type
             HAVING COALESCE(SUM(jl.debit_amount), 0) > 0
                 OR COALESCE(SUM(jl.credit_amount), 0) > 0
             ORDER BY
                 CASE a.account_type
-                    WHEN 'ASSET' THEN 1 WHEN 'LIABILITY' THEN 2
-                    WHEN 'EQUITY' THEN 3 WHEN 'REVENUE' THEN 4
-                    WHEN 'EXPENSE' THEN 5 ELSE 6
+                    WHEN 'REVENUE' THEN 1 WHEN 'EXPENSE' THEN 2 ELSE 3
                 END, a.code
         ", [$companyId, $dateFrom, $dateTo, $companyId]);
 
+        $rows        = array_merge($bsRows, $plRows);
         $totalDebit  = array_sum(array_column($rows, 'total_debit'));
         $totalCredit = array_sum(array_column($rows, 'total_credit'));
         $grouped     = collect($rows)->groupBy('account_type');
@@ -122,7 +152,36 @@ class ReportController extends Controller
         $dateTo    = $request->get('date_to',   date('Y-m-d'));
         $format    = $request->get('format', 'csv');
 
-        $rows = DB::select("
+        // Balance sheet accounts — cumulative, excluding Retained Earnings
+        $bsRows = DB::select("
+            SELECT
+                a.code, a.name, a.account_type,
+                COALESCE(SUM(jl.debit_amount), 0)  AS total_debit,
+                COALESCE(SUM(jl.credit_amount), 0) AS total_credit
+            FROM accounts a
+            LEFT JOIN (
+                SELECT jl.*
+                FROM journal_lines jl
+                JOIN journal_entries je ON je.id = jl.journal_entry_id
+                WHERE je.company_id = ?
+                  AND je.status = 'POSTED'
+                  AND je.entry_date <= ?
+            ) jl ON jl.account_id = a.id
+            WHERE a.company_id = ?
+              AND a.account_type IN ('ASSET', 'LIABILITY', 'EQUITY')
+              AND a.code != '5100'
+            GROUP BY a.id, a.code, a.name, a.account_type
+            HAVING COALESCE(SUM(jl.debit_amount), 0) > 0
+                OR COALESCE(SUM(jl.credit_amount), 0) > 0
+            ORDER BY
+                CASE a.account_type
+                    WHEN 'ASSET' THEN 1 WHEN 'LIABILITY' THEN 2
+                    WHEN 'EQUITY' THEN 3 ELSE 4
+                END, a.code
+        ", [$companyId, $dateTo, $companyId]);
+
+        // P&L accounts — date range only, excluding closing entries
+        $plRows = DB::select("
             SELECT
                 a.code, a.name, a.account_type,
                 COALESCE(SUM(jl.debit_amount), 0)  AS total_debit,
@@ -139,17 +198,17 @@ class ReportController extends Controller
                   AND je.entry_date <= ?
             ) jl ON jl.account_id = a.id
             WHERE a.company_id = ?
+              AND a.account_type IN ('REVENUE', 'EXPENSE')
             GROUP BY a.id, a.code, a.name, a.account_type
             HAVING COALESCE(SUM(jl.debit_amount), 0) > 0
                 OR COALESCE(SUM(jl.credit_amount), 0) > 0
             ORDER BY
                 CASE a.account_type
-                    WHEN 'ASSET' THEN 1 WHEN 'LIABILITY' THEN 2
-                    WHEN 'EQUITY' THEN 3 WHEN 'REVENUE' THEN 4
-                    WHEN 'EXPENSE' THEN 5 ELSE 6
+                    WHEN 'REVENUE' THEN 1 WHEN 'EXPENSE' THEN 2 ELSE 3
                 END, a.code
         ", [$companyId, $dateFrom, $dateTo, $companyId]);
 
+        $rows        = array_merge($bsRows, $plRows);
         $companyName = session('company_name', 'Company');
 
         if ($format === 'excel') {
@@ -158,6 +217,7 @@ class ReportController extends Controller
                 "trial_balance_{$dateTo}.xlsx"
             );
         }
+
         if ($format === 'pdf') {
             $grouped     = collect($rows)->groupBy('account_type');
             $totalDebit  = array_sum(array_column($rows, 'total_debit'));
@@ -176,14 +236,19 @@ class ReportController extends Controller
             fputcsv($f, []);
             fputcsv($f, ['Code', 'Account Name', 'Type', 'Debit', 'Credit', 'Balance']);
             foreach ($rows as $r) {
-                fputcsv($f, [$r->code, $r->name, $r->account_type,
-                    number_format($r->total_debit, 2), number_format($r->total_credit, 2),
-                    number_format($r->total_debit - $r->total_credit, 2)]);
+                fputcsv($f, [
+                    $r->code, $r->name, $r->account_type,
+                    number_format($r->total_debit, 2),
+                    number_format($r->total_credit, 2),
+                    number_format($r->total_debit - $r->total_credit, 2),
+                ]);
             }
             fputcsv($f, []);
             fputcsv($f, ['', '', 'TOTAL',
                 number_format(array_sum(array_column((array)$rows, 'total_debit')), 2),
-                number_format(array_sum(array_column((array)$rows, 'total_credit')), 2), '']);
+                number_format(array_sum(array_column((array)$rows, 'total_credit')), 2),
+                '',
+            ]);
             fclose($f);
         };
         return response()->stream($callback, 200, $headers);
@@ -229,6 +294,7 @@ class ReportController extends Controller
                 "pnl_{$dateFrom}_to_{$dateTo}.xlsx"
             );
         }
+
         if ($format === 'pdf') {
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.exports.pnl_pdf',
                 compact('revenue', 'expenses', 'totalRevenue', 'totalExpenses', 'netProfit', 'dateFrom', 'dateTo', 'companyName'));
@@ -276,6 +342,7 @@ class ReportController extends Controller
                 "balance_sheet_{$asOf}.xlsx"
             );
         }
+
         if ($format === 'pdf') {
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.exports.balance_sheet_pdf',
                 array_merge($data, compact('companyName', 'asOf')));
@@ -328,7 +395,6 @@ class ReportController extends Controller
             ? \Carbon\Carbon::parse($lastClose)->addDay()->toDateString()
             : null;
 
-        // Balance sheet uses cumulative balances up to asOf date
         $rows = DB::select("
             SELECT a.code, a.name, a.account_type,
                 COALESCE(SUM(jl.debit_amount), 0) AS dr,
@@ -354,7 +420,6 @@ class ReportController extends Controller
             return (object) array_merge((array)$r, ['balance' => $bal]);
         })->filter(fn($r) => abs($r->balance) > 0.001);
 
-        // YTD profit
         if ($ytdFrom) {
             $ytdParams     = [$companyId, $ytdFrom, $asOf, $companyId];
             $ytdDateFilter = "AND je.entry_date >= ? AND je.entry_date <= ?";
@@ -575,93 +640,91 @@ class ReportController extends Controller
             'netCashFlow', 'dateFrom', 'dateTo'
         ));
     }
-public function arLedger(Request $request)
-{
-    $companyId = session('company_id');
-    if (!$companyId) return redirect('/dashboard')->with('error', 'Please select a company.');
 
-    $dateFrom = $request->get('date_from', date('Y-01-01'));
-    $dateTo   = $request->get('date_to',   date('Y-m-d'));
-    $asOf     = $request->get('as_of',     date('Y-m-d'));
-    $mode     = $request->get('mode', 'balance'); // balance or ledger
+    public function arLedger(Request $request)
+    {
+        $companyId = session('company_id');
+        if (!$companyId) return redirect('/dashboard')->with('error', 'Please select a company.');
 
-    // Get all ASSET accounts that look like AR (individual client accounts)
-    // Exclude generic accounts like AR1, CA-RB1, PC1 etc.
-    $arAccounts = DB::select("
-        SELECT
-            a.id,
-            a.code,
-            a.name,
-            COALESCE(SUM(CASE WHEN je.entry_date <= ? THEN jl.debit_amount ELSE 0 END), 0) AS total_dr,
-            COALESCE(SUM(CASE WHEN je.entry_date <= ? THEN jl.credit_amount ELSE 0 END), 0) AS total_cr
-        FROM accounts a
-        LEFT JOIN (
-            SELECT jl.*
-            FROM journal_lines jl
-            JOIN journal_entries je ON je.id = jl.journal_entry_id
-            WHERE je.company_id = ?
-              AND je.status = 'POSTED'
-              AND je.entry_date <= ?
-        ) jl ON jl.account_id = a.id
-        JOIN journal_entries je ON je.id = jl.journal_entry_id
-        WHERE a.company_id = ?
-          AND a.account_type = 'ASSET'
-          AND a.code NOT IN ('AR1','CA-RB1','PC1','CA1','A1','PLAL1','PS-K1','PEI-A1')
-        GROUP BY a.id, a.code, a.name
-        HAVING (
-            COALESCE(SUM(CASE WHEN je.entry_date <= ? THEN jl.debit_amount ELSE 0 END), 0) > 0
-            OR COALESCE(SUM(CASE WHEN je.entry_date <= ? THEN jl.credit_amount ELSE 0 END), 0) > 0
-        )
-        ORDER BY a.name
-    ", [$asOf, $asOf, $companyId, $asOf, $companyId, $asOf, $asOf]);
+        $dateFrom = $request->get('date_from', date('Y-01-01'));
+        $dateTo   = $request->get('date_to',   date('Y-m-d'));
+        $asOf     = $request->get('as_of',     date('Y-m-d'));
+        $mode     = $request->get('mode', 'balance');
 
-    $arAccounts = collect($arAccounts)->map(function($a) {
-        $a->balance = $a->total_dr - $a->total_cr;
-        return $a;
-    });
-
-    $totalBalance = $arAccounts->sum('balance');
-    $totalDr      = $arAccounts->sum('total_dr');
-    $totalCr      = $arAccounts->sum('total_cr');
-
-    // Get transaction lines per account if ledger mode
-    $ledgerLines = [];
-    if ($mode === 'ledger') {
-        foreach ($arAccounts as $acc) {
-            $lines = DB::select("
-                SELECT
-                    je.entry_date as date,
-                    je.entry_number,
-                    je.description,
-                    je.reference,
-                    jl.debit_amount,
-                    jl.credit_amount,
-                    jl.description as line_desc
+        $arAccounts = DB::select("
+            SELECT
+                a.id,
+                a.code,
+                a.name,
+                COALESCE(SUM(CASE WHEN je.entry_date <= ? THEN jl.debit_amount ELSE 0 END), 0) AS total_dr,
+                COALESCE(SUM(CASE WHEN je.entry_date <= ? THEN jl.credit_amount ELSE 0 END), 0) AS total_cr
+            FROM accounts a
+            LEFT JOIN (
+                SELECT jl.*
                 FROM journal_lines jl
                 JOIN journal_entries je ON je.id = jl.journal_entry_id
-                WHERE jl.account_id = ?
-                  AND je.company_id = ?
+                WHERE je.company_id = ?
                   AND je.status = 'POSTED'
-                  AND je.entry_date >= ?
                   AND je.entry_date <= ?
-                ORDER BY je.entry_date, je.id
-            ", [$acc->id, $companyId, $dateFrom, $dateTo]);
+            ) jl ON jl.account_id = a.id
+            JOIN journal_entries je ON je.id = jl.journal_entry_id
+            WHERE a.company_id = ?
+              AND a.account_type = 'ASSET'
+              AND a.code NOT IN ('AR1','CA-RB1','PC1','CA1','A1','PLAL1','PS-K1','PEI-A1')
+            GROUP BY a.id, a.code, a.name
+            HAVING (
+                COALESCE(SUM(CASE WHEN je.entry_date <= ? THEN jl.debit_amount ELSE 0 END), 0) > 0
+                OR COALESCE(SUM(CASE WHEN je.entry_date <= ? THEN jl.credit_amount ELSE 0 END), 0) > 0
+            )
+            ORDER BY a.name
+        ", [$asOf, $asOf, $companyId, $asOf, $companyId, $asOf, $asOf]);
 
-            $running = 0;
-            foreach ($lines as $line) {
-                $running += $line->debit_amount - $line->credit_amount;
-                $line->running_balance = $running;
-            }
+        $arAccounts = collect($arAccounts)->map(function($a) {
+            $a->balance = $a->total_dr - $a->total_cr;
+            return $a;
+        });
 
-            if (!empty($lines)) {
-                $ledgerLines[$acc->code] = $lines;
+        $totalBalance = $arAccounts->sum('balance');
+        $totalDr      = $arAccounts->sum('total_dr');
+        $totalCr      = $arAccounts->sum('total_cr');
+
+        $ledgerLines = [];
+        if ($mode === 'ledger') {
+            foreach ($arAccounts as $acc) {
+                $lines = DB::select("
+                    SELECT
+                        je.entry_date as date,
+                        je.entry_number,
+                        je.description,
+                        je.reference,
+                        jl.debit_amount,
+                        jl.credit_amount,
+                        jl.description as line_desc
+                    FROM journal_lines jl
+                    JOIN journal_entries je ON je.id = jl.journal_entry_id
+                    WHERE jl.account_id = ?
+                      AND je.company_id = ?
+                      AND je.status = 'POSTED'
+                      AND je.entry_date >= ?
+                      AND je.entry_date <= ?
+                    ORDER BY je.entry_date, je.id
+                ", [$acc->id, $companyId, $dateFrom, $dateTo]);
+
+                $running = 0;
+                foreach ($lines as $line) {
+                    $running += $line->debit_amount - $line->credit_amount;
+                    $line->running_balance = $running;
+                }
+
+                if (!empty($lines)) {
+                    $ledgerLines[$acc->code] = $lines;
+                }
             }
         }
-    }
 
-    return view('reports.ar_ledger', compact(
-        'arAccounts', 'totalBalance', 'totalDr', 'totalCr',
-        'asOf', 'dateFrom', 'dateTo', 'mode', 'ledgerLines'
-    ));
-}
+        return view('reports.ar_ledger', compact(
+            'arAccounts', 'totalBalance', 'totalDr', 'totalCr',
+            'asOf', 'dateFrom', 'dateTo', 'mode', 'ledgerLines'
+        ));
+    }
 }

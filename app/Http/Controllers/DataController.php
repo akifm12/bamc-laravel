@@ -71,7 +71,7 @@ class DataController extends Controller
             ->where('company_id', $companyId)
             ->orderBy('code')
             ->get([
-                'code', 'name', 'account_type', 'account_subtype',
+                'code', 'name', 'account_type', 'account_sub_type',
                 'parent_id', 'currency_code', 'description', 'is_active'
             ]);
 
@@ -172,7 +172,7 @@ class DataController extends Controller
 
         $templates = [
             'accounts' => [
-                'headers' => ['code', 'name', 'account_type', 'account_subtype', 'description', 'is_active'],
+                'headers' => ['code', 'name', 'account_type', 'account_sub_type', 'description', 'is_active'],
                 'sample'  => [
                     ['1001', 'Cash on Hand', 'ASSET', 'CURRENT_ASSET', 'Petty cash account', 'true'],
                     ['1002', 'Bank Account', 'ASSET', 'CURRENT_ASSET', 'Main bank account', 'true'],
@@ -286,7 +286,7 @@ class DataController extends Controller
     			'account_type'   => strtoupper($data['account_type']),
     			'normal_balance' => in_array(strtoupper($data['account_type']), ['ASSET', 'EXPENSE']) ? 'DEBIT' : 'CREDIT',
     			'description'    => $data['description'] ?? null,
-    			'is_active'      => ($data['is_active'] ?? 'true') === 'true',
+                'is_active' 	 => in_array(strtolower($data['is_active'] ?? 'true'), ['true', '1', 'yes']),
     			'currency_code'  => 'AED',
     			'created_at'     => now(),
     			'updated_at'     => now(),

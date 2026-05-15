@@ -107,6 +107,7 @@ Route::middleware(['auth'])->group(function () {
 	Route::post('/settings/fiscal-years', [CompanySetupController::class, 'storeFiscalYear'])->name('settings.fiscal_years.store');
 	Route::post('/settings/fiscal-years/{id}/close', [CompanySetupController::class, 'closeFiscalYear'])->name('settings.fiscal_years.close');
 	Route::post('/settings/fiscal-years/{id}/reopen', [CompanySetupController::class, 'reopenFiscalYear'])->name('settings.fiscal_years.reopen');
+    Route::post('/settings/fiscal-years/{id}/recalculate-closing', [CompanySetupController::class, 'recalculateClosing'])->name('settings.fiscal_years.recalculate_closing');
 
 	Route::get('/banking', [BankAccountController::class, 'index'])->name('banking.index');
 	Route::get('/banking/create', [BankAccountController::class, 'create'])->name('banking.create');

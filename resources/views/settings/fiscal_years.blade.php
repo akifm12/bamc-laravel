@@ -59,13 +59,27 @@
                     <td class="px-4 py-2 text-gray-600">{{ $fy->start_date }}</td>
                     <td class="px-4 py-2 text-gray-600">{{ $fy->end_date }}</td>
                     <td class="px-4 py-2 text-center text-gray-600">{{ $fy->period_count }}</td>
-                    <td class="px-4 py-2 text-center">
-                        @if($status === 'open')
-                            <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Open</span>
-                        @else
-                            <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Closed</span>
-                        @endif
-                    </td>
+<td class="px-4 py-2 text-center">
+    <div class="flex gap-2 justify-center">
+        <form method="POST" action="/settings/fiscal-years/{{ $fy->id }}/recalculate-closing" class="inline">
+            @csrf
+            <button onclick="return confirm('Recalculate closing entry for {{ $fy->name }}? Existing closing entry will be replaced.')"
+                class="text-xs text-blue-600 hover:text-blue-800">Recalculate</button>
+        </form>
+        @if($status === 'open')
+            <form method="POST" action="/settings/fiscal-years/{{ $fy->id }}/close" class="inline">
+                @csrf
+                <button onclick="return confirm('Close {{ $fy->name }}? This will lock all periods.')"
+                    class="text-xs text-red-500 hover:text-red-700">Close</button>
+            </form>
+        @else
+            <form method="POST" action="/settings/fiscal-years/{{ $fy->id }}/reopen" class="inline">
+                @csrf
+                <button class="text-xs text-green-600 hover:text-green-800">Reopen</button>
+            </form>
+        @endif
+    </div>
+</td>
                     <td class="px-4 py-2 text-center">
                         @if($status === 'open')
                             <form method="POST" action="/settings/fiscal-years/{{ $fy->id }}/close" class="inline">
