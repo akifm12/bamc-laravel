@@ -25,6 +25,17 @@ class CompanySetupController extends Controller
     public function update(Request $request, $id)
     {
         if (!auth()->user()->is_super_admin) abort(403);
+
+        $logoPath = DB::table('companies')->where('id', $id)->value('logo_path');
+
+        if ($request->hasFile('logo')) {
+            $request->validate(['logo' => 'image|max:2048']);
+            $file     = $request->file('logo');
+            $filename = 'logo.' . $file->getClientOriginalExtension();
+            $file->move(public_path("logos/{$id}"), $filename);
+            $logoPath = "logos/{$id}/{$filename}";
+        }
+
         DB::table('companies')->where('id', $id)->update([
             'name'                    => $request->name,
             'name_arabic'             => $request->name_arabic,
@@ -44,6 +55,12 @@ class CompanySetupController extends Controller
             'default_vat_rate'        => $request->default_vat_rate ?? 5,
             'default_ar_account_id'   => $request->default_ar_account_id ?: null,
             'default_ap_account_id'   => $request->default_ap_account_id ?: null,
+            'bank_name'               => $request->bank_name,
+            'bank_account_title'      => $request->bank_account_title,
+            'bank_account_number'     => $request->bank_account_number,
+            'bank_iban'               => $request->bank_iban,
+            'bank_swift'              => $request->bank_swift,
+            'logo_path'               => $logoPath,
             'updated_at'              => now(),
         ]);
 

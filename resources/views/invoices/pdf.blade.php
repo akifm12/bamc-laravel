@@ -64,7 +64,14 @@
 <body>
 
 @php
-    $logoB64 = file_get_contents(public_path('images/logo_b64.txt'));
+    $logoB64 = null;
+    if (!empty($company->logo_path) && file_exists(public_path($company->logo_path))) {
+        $logoB64 = base64_encode(file_get_contents(public_path($company->logo_path)));
+        $logoMime = mime_content_type(public_path($company->logo_path));
+    } elseif (file_exists(public_path('images/logo_b64.txt'))) {
+        $logoB64 = file_get_contents(public_path('images/logo_b64.txt'));
+        $logoMime = null; // already a raw base64 string with no prefix needed
+    }
 
     function amountInWords($amount) {
         $amount = round($amount, 2);
@@ -96,7 +103,13 @@
 <table class="header-table">
     <tr>
         <td style="width:150px; vertical-align:top;">
-            <img src="data:image/png;base64,{{ $logoB64 }}" alt="Logo" style="width:90px;">
+            @if($logoB64)
+                @if($logoMime)
+                    <img src="data:{{ $logoMime }};base64,{{ $logoB64 }}" alt="Logo" style="width:90px;">
+                @else
+                    <img src="data:image/png;base64,{{ $logoB64 }}" alt="Logo" style="width:90px;">
+                @endif
+            @endif
         </td>
         <td style="vertical-align:top;">
             <div class="company-info">
@@ -194,16 +207,18 @@
 @endif
 
 <!-- BANK DETAILS — fixed to bottom above footer -->
+@if($company->bank_name || $company->bank_account_number || $company->bank_iban)
 <div class="bank-section">
     <h4>Bank Details</h4>
     <table class="bank-table">
-        <tr><td>Bank Name:</td><td>National Bank of Ras Al Khaimah (P.S.C)</td></tr>
-        <tr><td>Account Title:</td><td>Blue Arrow Management Consultants FZC</td></tr>
-        <tr><td>Account Number:</td><td>0293106433001</td></tr>
-        <tr><td>IBAN Number:</td><td>AE700400000293106433001</td></tr>
-        <tr><td>SWIFT Code:</td><td>NRAKAEAK</td></tr>
+        @if($company->bank_name)<tr><td>Bank Name:</td><td>{{ $company->bank_name }}</td></tr>@endif
+        @if($company->bank_account_title)<tr><td>Account Title:</td><td>{{ $company->bank_account_title }}</td></tr>@endif
+        @if($company->bank_account_number)<tr><td>Account Number:</td><td>{{ $company->bank_account_number }}</td></tr>@endif
+        @if($company->bank_iban)<tr><td>IBAN Number:</td><td>{{ $company->bank_iban }}</td></tr>@endif
+        @if($company->bank_swift)<tr><td>SWIFT Code:</td><td>{{ $company->bank_swift }}</td></tr>@endif
     </table>
 </div>
+@endif
 
 <!-- FOOTER -->
 <div class="footer">

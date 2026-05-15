@@ -12,7 +12,7 @@
 </div>
 @endif
 
-<form method="POST" action="/settings/company/{{ $company->id }}" class="space-y-4">
+<form method="POST" action="/settings/company/{{ $company->id }}" class="space-y-4" enctype="multipart/form-data">
     @csrf
 
     <!-- Basic Info -->
@@ -108,6 +108,61 @@
                         <option value="{{ $e }}" {{ $company->emirate == $e ? 'selected' : '' }}>{{ $e }}</option>
                     @endforeach
                 </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Company Logo -->
+    <div class="bg-white rounded-lg border border-gray-200 p-5">
+        <h3 class="font-semibold text-gray-700 text-sm mb-4">Company Logo</h3>
+        <div class="flex items-start gap-6">
+            @if($company->logo_path)
+            <div>
+                <img src="{{ asset($company->logo_path) }}" alt="Current Logo" class="h-16 object-contain border border-gray-200 rounded p-1">
+                <p class="text-xs text-gray-400 mt-1">Current logo</p>
+            </div>
+            @endif
+            <div class="flex-1">
+                <label class="text-xs text-gray-500 block mb-1">Upload Logo <span class="text-gray-400">(PNG, JPG — max 2MB)</span></label>
+                <input type="file" name="logo" accept="image/*"
+                    class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm text-gray-600 file:mr-3 file:border-0 file:bg-gray-100 file:text-xs file:px-3 file:py-1 file:rounded">
+                <p class="text-xs text-gray-400 mt-1">Leave blank to keep the existing logo. Uploading a new file will replace it.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Banking Details -->
+    <div class="bg-white rounded-lg border border-gray-200 p-5">
+        <h3 class="font-semibold text-gray-700 text-sm mb-4">Banking Details <span class="font-normal text-gray-400">(shown on invoice PDFs)</span></h3>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="col-span-2">
+                <label class="text-xs text-gray-500 block mb-1">Bank Name</label>
+                <input type="text" name="bank_name" value="{{ old('bank_name', $company->bank_name) }}"
+                    placeholder="e.g. National Bank of Ras Al Khaimah"
+                    class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
+            </div>
+            <div class="col-span-2">
+                <label class="text-xs text-gray-500 block mb-1">Account Title</label>
+                <input type="text" name="bank_account_title" value="{{ old('bank_account_title', $company->bank_account_title) }}"
+                    placeholder="e.g. Blue Arrow Management Consultants FZC"
+                    class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-gray-500 block mb-1">Account Number</label>
+                <input type="text" name="bank_account_number" value="{{ old('bank_account_number', $company->bank_account_number) }}"
+                    class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-gray-500 block mb-1">IBAN</label>
+                <input type="text" name="bank_iban" value="{{ old('bank_iban', $company->bank_iban) }}"
+                    placeholder="e.g. AE700400000293106433001"
+                    class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-gray-500 block mb-1">SWIFT Code</label>
+                <input type="text" name="bank_swift" value="{{ old('bank_swift', $company->bank_swift) }}"
+                    placeholder="e.g. NRAKAEAK"
+                    class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
             </div>
         </div>
     </div>
