@@ -144,6 +144,149 @@ class CompanySetupController extends Controller
         return back()->with('success', 'Fiscal year reopened.');
     }
 
+public function recalculateClosing($id)
+{
+    if (!auth()->user()->is_super_admin) abort(403);
+
+    $companyId = session('company_id');
+
+    $fiscalYear = DB::table('fiscal_years')->where('id', $id)->first();
+    if (!$fiscalYear) abort(404);
+
+    DB::transaction(function() use ($id, $companyId, $fiscalYear) {
+
+        // Delete existing closing entry for this year
+        $existing = DB::table('journal_entries')
+            ->where('company_id', $companyId)
+            ->where('journal_type', 'CLOSING_ENTRY')
+            ->whereBetween('entry_date', [$fiscalYear->start_date, $fiscalYear->end_date])
+            ->get();
+
+        foreach ($existing as $je) {
+            DB::table('journal_lines')->where('journal_entry_id', $je->id)->delete();
+            DB::table('journal_entries')->where('id', $je->id)->delete();
+        }
+
+        // Sum all revenue and expense accounts for the year
+        $rows = DB::select("
+            SELECT a.id as account_id, a.code, a.name, a.account_type,
+                COALESCE(SUM(jl.debit_amount), 0) as total_dr,
+                COALESCE(SUM(jl.credit_amount), 0) as total_cr
+            FROM accounts a
+            JOIN journal_lines jl ON jl.account_id = a.id
+            JOIN journal_entries je ON je.id = jl.journal_entry_id
+            WHERE je.company_id = ?
+              AND je.status = 'POSTED'
+              AND je.journal_type != 'CLOSING_ENTRY'
+              AND je.entry_date BETWEEN ? AND ?
+              AND a.account_type IN ('REVENUE', 'EXPENSE')
+            GROUP BY a.id, a.code, a.name, a.account_type
+            HAVING ABS(COALESCE(SUM(jl.debit_amount),0) - COALESCE(SUM(jl.credit_amount),0)) > 0.001
+        ", [$companyId, $fiscalYear->start_date, $fiscalYear->end_date]);
+
+        if (empty($rows)) {
+            return;
+        }
+
+        // Calculate net profit
+        $totalRevenue  = collect($rows)->where('account_type', 'REVENUE')->sum(fn($r) => $r->total_cr - $r->total_dr);
+        $totalExpenses = collect($rows)->where('account_type', 'EXPENSE')->sum(fn($r) => $r->total_dr - $r->total_cr);
+        $netProfit     = $totalRevenue - $totalExpenses;
+
+        // Get period for year end date
+        $period = DB::table('accounting_periods')
+            ->where('company_id', $companyId)
+            ->where('start_date', '<=', $fiscalYear->end_date)
+            ->where('end_date', '>=', $fiscalYear->end_date)
+            ->first();
+
+        if (!$period) return;
+
+        // Create new closing entry
+        $jeId = DB::table('journal_entries')->insertGetId([
+            'company_id'    => $companyId,
+            'period_id'     => $period->id,
+            'entry_number'  => 'CLOSE-' . $fiscalYear->name,
+            'entry_date'    => $fiscalYear->end_date,
+            'journal_type'  => 'CLOSING_ENTRY',
+            'status'        => 'POSTED',
+            'description'   => 'Closing Entry for ' . $fiscalYear->name,
+            'reference'     => 'CLOSE-' . $fiscalYear->name,
+            'total_debit'   => collect($rows)->where('account_type', 'REVENUE')->sum('total_cr'),
+            'total_credit'  => collect($rows)->where('account_type', 'REVENUE')->sum('total_cr'),
+            'currency_code' => 'AED',
+            'exchange_rate' => 1,
+            'is_reversal'   => false,
+            'is_recurring'  => false,
+            'is_deleted'    => false,
+            'created_at'    => now(),
+            'updated_at'    => now(),
+        ]);
+
+        $lineNum = 1;
+
+// DR all Revenue accounts (close them to zero)
+foreach (collect($rows)->where('account_type', 'REVENUE') as $r) {
+    $net = $r->total_cr - $r->total_dr;
+    if (abs($net) < 0.001) continue;
+    DB::table('journal_lines')->insert([
+        'journal_entry_id' => $jeId,
+        'company_id'       => $companyId,
+        'account_id'       => $r->account_id,
+        'line_number'      => $lineNum++,
+        'description'      => 'Closing Entry for ' . $fiscalYear->name,
+        'debit_amount'     => $net > 0 ? $net : 0,
+        'credit_amount'    => $net < 0 ? abs($net) : 0,
+        'currency_code'    => 'AED',
+        'exchange_rate'    => 1,
+        'is_reconciled'    => false,
+    ]);
+}
+
+// CR all Expense accounts (close them to zero)
+foreach (collect($rows)->where('account_type', 'EXPENSE') as $r) {
+    $net = $r->total_dr - $r->total_cr;
+    if (abs($net) < 0.001) continue;
+    DB::table('journal_lines')->insert([
+        'journal_entry_id' => $jeId,
+        'company_id'       => $companyId,
+        'account_id'       => $r->account_id,
+        'line_number'      => $lineNum++,
+        'description'      => 'Closing Entry for ' . $fiscalYear->name,
+        'debit_amount'     => $net < 0 ? abs($net) : 0,
+        'credit_amount'    => $net > 0 ? $net : 0,
+        'currency_code'    => 'AED',
+        'exchange_rate'    => 1,
+        'is_reconciled'    => false,
+    ]);
+}
+
+        // CR/DR Retained Earnings with net profit/loss
+        $retainedEarnings = DB::table('accounts')
+            ->where('company_id', $companyId)
+            ->where('is_active', true)
+            ->whereRaw("name ILIKE '%retained%'")
+            ->first();
+
+        if ($retainedEarnings) {
+            DB::table('journal_lines')->insert([
+                'journal_entry_id' => $jeId,
+                'company_id'       => $companyId,
+                'account_id'       => $retainedEarnings->id,
+                'line_number'      => $lineNum++,
+                'description'      => 'Closing Entry for ' . $fiscalYear->name,
+                'debit_amount'     => $netProfit < 0 ? abs($netProfit) : 0,
+                'credit_amount'    => $netProfit > 0 ? $netProfit : 0,
+                'currency_code'    => 'AED',
+                'exchange_rate'    => 1,
+                'is_reconciled'    => false,
+            ]);
+        }
+    });
+
+    return back()->with('success', 'Closing entry recalculated successfully.');
+}
+
     public function companies()
     {
         if (!auth()->user()->is_super_admin) abort(403);
