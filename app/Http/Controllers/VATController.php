@@ -17,32 +17,99 @@ class VATController extends Controller
         $returns = DB::table('vat_returns')
             ->where('company_id', $companyId)
             ->where('is_deleted', false)
-            ->orderBy('period_from', 'desc')
-            ->get();
+            ->get()
+            ->keyBy('period_from'); // keyed by period_from for quick lookup
 
-        // Current period
-        $cycleStart  = (int) ($company->vat_quarter_start_month ?? 1);
+        $cycleStart    = (int) ($company->vat_quarter_start_month ?? 1);
         $currentPeriod = $this->getCurrentPeriod($cycleStart);
         $prevPeriod    = $this->getPreviousPeriod($cycleStart);
 
-        // VAT so far in the current period (from invoices + bills)
+        // VAT so far in the current period
         $currentVAT = $this->calculateVATBoxes($companyId, $currentPeriod['from'], $currentPeriod['to']);
 
-        // Check if a return already exists for current period
-        $currentReturn = DB::table('vat_returns')
-            ->where('company_id', $companyId)
-            ->where('period_from', $currentPeriod['from'])
-            ->where('is_deleted', false)
-            ->first();
+        $currentReturn = $returns->get($currentPeriod['from']);
+        $daysUntilDue  = now()->diffInDays($currentPeriod['due'], false);
 
-        // Days until due
-        $daysUntilDue = now()->diffInDays($currentPeriod['due'], false);
+        // --- Historical quarters ---
+        // Start from vat_registration_date, fallback to earliest invoice
+        $startDate = $company->vat_registration_date;
+        if (!$startDate) {
+            $earliest = DB::table('invoices')
+                ->where('company_id', $companyId)
+                ->where('is_deleted', false)
+                ->min('invoice_date');
+            $startDate = $earliest ?? date('Y-01-01');
+        }
+
+        // Snap start date back to the quarter boundary for this cycle
+        $startCarbon  = \Carbon\Carbon::parse($startDate)->startOfMonth();
+        $offset       = (($startCarbon->month - $cycleStart) % 3 + 3) % 3;
+        $startCarbon->subMonths($offset);
+
+        // Generate all quarter periods from start up to (but not including) current period
+        $allPeriods = [];
+        $cursor = $startCarbon->copy();
+        $currentFrom = \Carbon\Carbon::parse($currentPeriod['from']);
+
+        while ($cursor->lt($currentFrom)) {
+            $from = $cursor->copy()->startOfMonth();
+            $to   = $cursor->copy()->addMonths(2)->endOfMonth();
+            $due  = $to->copy()->addDays(28);
+            $allPeriods[] = [
+                'from'  => $from->toDateString(),
+                'to'    => $to->toDateString(),
+                'due'   => $due->toDateString(),
+                'label' => $from->format('M Y') . ' — ' . $to->format('M Y'),
+            ];
+            $cursor->addMonths(3);
+        }
+        $allPeriods = array_reverse($allPeriods); // newest first
+
+        // Two aggregate queries — invoices and bills — grouped by month
+        $invoicesByMonth = DB::table('invoices')
+            ->where('company_id', $companyId)
+            ->where('is_deleted', false)
+            ->whereNotIn('status', ['VOID', 'DRAFT'])
+            ->selectRaw("DATE_TRUNC('month', invoice_date::date)::date AS month, SUM(subtotal) AS sales, SUM(total_vat_amount) AS output_vat")
+            ->groupByRaw("DATE_TRUNC('month', invoice_date::date)")
+            ->get()
+            ->keyBy(fn($r) => \Carbon\Carbon::parse($r->month)->format('Y-m'));
+
+        $billsByMonth = DB::table('bills')
+            ->where('company_id', $companyId)
+            ->where('is_deleted', false)
+            ->whereNotIn('status', ['VOID', 'DRAFT'])
+            ->selectRaw("DATE_TRUNC('month', bill_date::date)::date AS month, SUM(subtotal) AS purchases, SUM(total_vat_amount) AS input_vat")
+            ->groupByRaw("DATE_TRUNC('month', bill_date::date)")
+            ->get()
+            ->keyBy(fn($r) => \Carbon\Carbon::parse($r->month)->format('Y-m'));
+
+        // Roll monthly data into each quarter
+        $history = collect($allPeriods)->map(function ($period) use ($invoicesByMonth, $billsByMonth, $returns) {
+            $from = \Carbon\Carbon::parse($period['from']);
+            $months = [
+                $from->format('Y-m'),
+                $from->copy()->addMonth()->format('Y-m'),
+                $from->copy()->addMonths(2)->format('Y-m'),
+            ];
+
+            $sales      = collect($months)->sum(fn($m) => $invoicesByMonth->get($m)->sales ?? 0);
+            $outputVAT  = collect($months)->sum(fn($m) => $invoicesByMonth->get($m)->output_vat ?? 0);
+            $purchases  = collect($months)->sum(fn($m) => $billsByMonth->get($m)->purchases ?? 0);
+            $inputVAT   = collect($months)->sum(fn($m) => $billsByMonth->get($m)->input_vat ?? 0);
+            $netDue     = $outputVAT - $inputVAT;
+            $vatReturn  = $returns->get($period['from']);
+            $amountPaid = $vatReturn->amount_paid ?? 0;
+            $balance    = ($vatReturn->box13_net_payable ?? $netDue) - $amountPaid;
+
+            return array_merge($period, compact('sales', 'outputVAT', 'purchases', 'inputVAT', 'netDue', 'vatReturn', 'amountPaid', 'balance'));
+        });
 
         return view('vat.index', compact(
             'returns', 'company',
             'currentPeriod', 'prevPeriod',
             'currentVAT', 'currentReturn',
-            'daysUntilDue'
+            'daysUntilDue', 'history'
         ));
     }
 

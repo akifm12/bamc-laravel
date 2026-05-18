@@ -107,9 +107,9 @@
     @endif
 </div>
 
-<!-- All Returns -->
+<!-- Historical Quarters -->
 <div class="mb-3 flex items-center justify-between">
-    <p class="text-sm text-gray-500">{{ count($returns) }} VAT returns on record</p>
+    <p class="text-sm text-gray-500">All VAT quarters since registration</p>
     <a href="/vat/create" class="bg-green-700 text-white text-sm px-4 py-2 rounded hover:bg-green-800">➕ New VAT Return</a>
 </div>
 
@@ -117,68 +117,103 @@
     <table class="w-full text-sm">
         <thead>
             <tr class="text-xs text-gray-400 uppercase border-b border-gray-200 bg-gray-50">
-                <th class="px-4 py-2 text-left">Return No.</th>
                 <th class="px-4 py-2 text-left">Period</th>
                 <th class="px-4 py-2 text-left">Due Date</th>
+                <th class="px-4 py-2 text-right">Sales</th>
                 <th class="px-4 py-2 text-right">Output VAT</th>
+                <th class="px-4 py-2 text-right">Purchases</th>
                 <th class="px-4 py-2 text-right">Input VAT</th>
-                <th class="px-4 py-2 text-right">Net Payable</th>
+                <th class="px-4 py-2 text-right">Net Due</th>
                 <th class="px-4 py-2 text-right">Paid</th>
                 <th class="px-4 py-2 text-right">Balance</th>
-                <th class="px-4 py-2 text-center">Status</th>
+                <th class="px-4 py-2 text-center">Return</th>
                 <th class="px-4 py-2"></th>
             </tr>
         </thead>
         <tbody>
-            @forelse($returns as $r)
+            @forelse($history as $q)
             @php
-                $balance = ($r->box13_net_payable ?? 0) - ($r->amount_paid ?? 0);
-                $statusColor = match(strtolower($r->status)) {
-                    'submitted' => 'bg-blue-100 text-blue-700',
-                    'paid'      => 'bg-green-100 text-green-700',
-                    'draft'     => 'bg-yellow-100 text-yellow-700',
-                    default     => 'bg-gray-100 text-gray-500',
-                };
+                $hasActivity = $q['sales'] > 0 || $q['purchases'] > 0 || $q['vatReturn'];
+                $netDue      = $q['netDue'];
+                $balance     = $q['balance'];
+                $r           = $q['vatReturn'];
+
+                if (!$hasActivity) {
+                    $rowClass = 'bg-gray-50 text-gray-400';
+                } elseif (abs($balance) < 0.01) {
+                    $rowClass = 'hover:bg-green-50';
+                } elseif ($netDue > 0 && !$r) {
+                    $rowClass = 'bg-red-50 hover:bg-red-100'; // no return filed
+                } else {
+                    $rowClass = 'hover:bg-gray-50';
+                }
+
+                $statusColor = !$r ? 'bg-red-100 text-red-600'
+                    : match(strtolower($r->status)) {
+                        'paid'      => 'bg-green-100 text-green-700',
+                        'submitted' => 'bg-blue-100 text-blue-700',
+                        'draft'     => 'bg-yellow-100 text-yellow-700',
+                        default     => 'bg-gray-100 text-gray-500',
+                    };
+                $statusLabel = !$r ? 'Not Filed' : strtoupper($r->status);
             @endphp
-            <tr class="border-b border-gray-50 hover:bg-gray-50">
-                <td class="px-4 py-2 font-mono text-xs">{{ $r->return_number }}</td>
-                <td class="px-4 py-2 text-gray-600 text-xs">
-                    {{ \Carbon\Carbon::parse($r->period_from)->format('d M Y') }} —
-                    {{ \Carbon\Carbon::parse($r->period_to)->format('d M Y') }}
+            <tr class="border-b border-gray-100 {{ $rowClass }}">
+                <td class="px-4 py-2 font-medium text-gray-700 text-xs">{{ $q['label'] }}</td>
+                <td class="px-4 py-2 text-xs text-gray-500">{{ \Carbon\Carbon::parse($q['due'])->format('d M Y') }}</td>
+                <td class="px-4 py-2 text-right text-xs text-gray-600">
+                    {{ $q['sales'] > 0 ? number_format($q['sales'], 2) : '—' }}
                 </td>
-                <td class="px-4 py-2 text-gray-600 text-xs">{{ $r->due_date ? \Carbon\Carbon::parse($r->due_date)->format('d M Y') : '—' }}</td>
-                <td class="px-4 py-2 text-right text-gray-700">{{ number_format($r->box6_total_output_tax, 2) }}</td>
-                <td class="px-4 py-2 text-right text-gray-700">{{ number_format($r->box9_total_input_tax, 2) }}</td>
-                <td class="px-4 py-2 text-right font-semibold {{ $r->box13_net_payable > 0 ? 'text-red-600' : 'text-green-600' }}">
-                    AED {{ number_format($r->box13_net_payable, 2) }}
+                <td class="px-4 py-2 text-right text-xs font-medium text-blue-700">
+                    {{ $q['outputVAT'] > 0 ? number_format($q['outputVAT'], 2) : '—' }}
                 </td>
-                <td class="px-4 py-2 text-right text-green-700">
-                    {{ ($r->amount_paid ?? 0) > 0 ? 'AED ' . number_format($r->amount_paid, 2) : '—' }}
-                    @if($r->payment_date)
-                        <br><span class="text-xs text-gray-400">{{ \Carbon\Carbon::parse($r->payment_date)->format('d M Y') }}</span>
+                <td class="px-4 py-2 text-right text-xs text-gray-600">
+                    {{ $q['purchases'] > 0 ? number_format($q['purchases'], 2) : '—' }}
+                </td>
+                <td class="px-4 py-2 text-right text-xs font-medium text-orange-600">
+                    {{ $q['inputVAT'] > 0 ? number_format($q['inputVAT'], 2) : '—' }}
+                </td>
+                <td class="px-4 py-2 text-right font-semibold text-xs {{ $netDue > 0 ? 'text-red-600' : ($netDue < 0 ? 'text-green-600' : 'text-gray-400') }}">
+                    @if(abs($netDue) < 0.01) — @elseif($netDue < 0) ({{ number_format(abs($netDue), 2) }}) @else {{ number_format($netDue, 2) }} @endif
+                </td>
+                <td class="px-4 py-2 text-right text-xs text-green-700">
+                    @if(($q['amountPaid'] ?? 0) > 0)
+                        {{ number_format($q['amountPaid'], 2) }}
+                        @if($r?->payment_date)
+                            <br><span class="text-gray-400">{{ \Carbon\Carbon::parse($r->payment_date)->format('d M Y') }}</span>
+                        @endif
+                    @else
+                        —
                     @endif
                 </td>
-                <td class="px-4 py-2 text-right font-semibold {{ abs($balance) < 0.01 ? 'text-green-600' : 'text-red-600' }}">
-                    {{ abs($balance) < 0.01 ? '✅ Nil' : 'AED ' . number_format($balance, 2) }}
+                <td class="px-4 py-2 text-right font-semibold text-xs {{ abs($balance) < 0.01 ? 'text-green-600' : 'text-red-600' }}">
+                    @if(!$hasActivity) — @elseif(abs($balance) < 0.01) ✅ Nil @else {{ number_format($balance, 2) }} @endif
                 </td>
                 <td class="px-4 py-2 text-center">
-                    <span class="text-xs px-2 py-0.5 rounded-full {{ $statusColor }}">{{ strtoupper($r->status) }}</span>
+                    <span class="text-xs px-2 py-0.5 rounded-full {{ $statusColor }}">{{ $statusLabel }}</span>
                 </td>
-                <td class="px-4 py-2 text-right flex items-center gap-2 justify-end">
-                    <a href="/vat/{{ $r->id }}" class="text-xs text-blue-500 hover:text-blue-700">View</a>
-                    @if(strtolower($r->status) !== 'paid' && $r->box13_net_payable > 0)
-                    <button onclick="document.getElementById('pay-modal-{{ $r->id }}').classList.remove('hidden')"
-                        class="text-xs text-green-600 hover:text-green-800 border border-green-200 px-2 py-0.5 rounded">
-                        Mark Paid
-                    </button>
-                    @endif
+                <td class="px-4 py-2 text-right">
+                    <div class="flex items-center gap-1 justify-end">
+                        @if($r)
+                            <a href="/vat/{{ $r->id }}" class="text-xs text-blue-500 hover:text-blue-700">View</a>
+                            @if(strtolower($r->status) !== 'paid' && ($r->box13_net_payable ?? 0) > 0)
+                            <button onclick="document.getElementById('pay-modal-{{ $r->id }}').classList.remove('hidden')"
+                                class="text-xs text-green-600 hover:text-green-800 border border-green-200 px-2 py-0.5 rounded">
+                                Pay
+                            </button>
+                            @endif
+                        @elseif($hasActivity)
+                            <a href="/vat/create?date_from={{ $q['from'] }}&date_to={{ $q['to'] }}"
+                                class="text-xs text-white bg-red-600 hover:bg-red-700 px-2 py-0.5 rounded">
+                                File
+                            </a>
+                        @endif
+                    </div>
                 </td>
             </tr>
 
-            <!-- Pay Modal -->
-            @if(strtolower($r->status) !== 'paid' && $r->box13_net_payable > 0)
+            @if($r && strtolower($r->status) !== 'paid' && ($r->box13_net_payable ?? 0) > 0)
             <tr id="pay-modal-{{ $r->id }}" class="hidden bg-green-50 border-b border-green-100">
-                <td colspan="10" class="px-6 py-3">
+                <td colspan="11" class="px-6 py-3">
                     <form method="POST" action="/vat/{{ $r->id }}/pay" class="flex items-end gap-4">
                         @csrf
                         <div>
@@ -192,9 +227,7 @@
                             <input type="date" name="payment_date" value="{{ date('Y-m-d') }}"
                                 class="border border-gray-200 rounded px-3 py-1.5 text-sm">
                         </div>
-                        <button type="submit" class="bg-green-700 text-white text-sm px-4 py-1.5 rounded hover:bg-green-800">
-                            Confirm Payment
-                        </button>
+                        <button type="submit" class="bg-green-700 text-white text-sm px-4 py-1.5 rounded hover:bg-green-800">Confirm</button>
                         <button type="button" onclick="document.getElementById('pay-modal-{{ $r->id }}').classList.add('hidden')"
                             class="text-sm text-gray-400 px-2 py-1.5">Cancel</button>
                     </form>
@@ -204,8 +237,8 @@
 
             @empty
             <tr>
-                <td colspan="10" class="px-4 py-8 text-center text-gray-400">
-                    No VAT returns yet. <a href="/vat/create" class="text-green-600">Create one →</a>
+                <td colspan="11" class="px-4 py-8 text-center text-gray-400">
+                    No historical quarters found. Set your VAT registration date in Company Settings.
                 </td>
             </tr>
             @endforelse
