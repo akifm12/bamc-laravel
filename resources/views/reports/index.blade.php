@@ -42,10 +42,16 @@
         <p class="text-xs text-gray-400 mt-1">Operating, investing and financing cash movements</p>
     </a>
     <a href="/reports/ar-ledger" class="bg-white rounded-lg border border-gray-200 p-5 hover:border-green-300 hover:shadow-sm transition">
-    	<div class="text-2xl mb-2">📒</div>
-   		<h3 class="font-semibold text-gray-800">AR Ledger</h3>
-    <p class="text-xs text-gray-400 mt-1">GL-based receivables by client with full transaction history</p>
-	</a>
+        <div class="text-2xl mb-2">📒</div>
+        <h3 class="font-semibold text-gray-800">AR Ledger</h3>
+        <p class="text-xs text-gray-400 mt-1">GL-based receivables by client with full transaction history</p>
+    </a>
+
+    <a href="/reports/vat-ledger" class="bg-white rounded-lg border border-gray-200 p-5 hover:border-green-300 hover:shadow-sm transition">
+        <div class="text-2xl mb-2">🧾</div>
+        <h3 class="font-semibold text-gray-800">VAT Ledger</h3>
+        <p class="text-xs text-gray-400 mt-1">Output VAT collected, input VAT paid, and settlements to FTA</p>
+    </a>
 
 </div>
 

@@ -55,6 +55,7 @@ class CompanySetupController extends Controller
             'default_vat_rate'        => $request->default_vat_rate ?? 5,
             'default_ar_account_id'   => $request->default_ar_account_id ?: null,
             'default_ap_account_id'   => $request->default_ap_account_id ?: null,
+            'vat_quarter_start_month' => $request->vat_quarter_start_month ?? 1,
             'bank_name'               => $request->bank_name,
             'bank_account_title'      => $request->bank_account_title,
             'bank_account_number'     => $request->bank_account_number,

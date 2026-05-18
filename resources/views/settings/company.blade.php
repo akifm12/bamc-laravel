@@ -53,6 +53,15 @@
                 </select>
             </div>
             <div>
+                <label class="text-xs text-gray-500 block mb-1">VAT Filing Cycle <span class="text-gray-400">(quarterly start month)</span></label>
+                <select name="vat_quarter_start_month" class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
+                    <option value="1" {{ ($company->vat_quarter_start_month ?? 1) == 1 ? 'selected' : '' }}>Cycle 1 — Jan, Apr, Jul, Oct</option>
+                    <option value="2" {{ ($company->vat_quarter_start_month ?? 1) == 2 ? 'selected' : '' }}>Cycle 2 — Feb, May, Aug, Nov</option>
+                    <option value="3" {{ ($company->vat_quarter_start_month ?? 1) == 3 ? 'selected' : '' }}>Cycle 3 — Mar, Jun, Sep, Dec</option>
+                </select>
+                <p class="text-xs text-gray-400 mt-1">Based on your FTA registration — sets the 3-month filing periods.</p>
+            </div>
+            <div>
                 <label class="text-xs text-gray-500 block mb-1">Default VAT Rate (%)</label>
                 <input type="number" name="default_vat_rate"
                     value="{{ old('default_vat_rate', $company->default_vat_rate ?? 5) }}"

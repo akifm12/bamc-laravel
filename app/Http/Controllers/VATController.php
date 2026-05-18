@@ -12,13 +12,126 @@ class VATController extends Controller
         $companyId = session('company_id');
         if (!$companyId) return redirect('/dashboard')->with('error', 'Please select a company.');
 
+        $company = DB::table('companies')->find($companyId);
+
         $returns = DB::table('vat_returns')
             ->where('company_id', $companyId)
             ->where('is_deleted', false)
             ->orderBy('period_from', 'desc')
             ->get();
 
-        return view('vat.index', compact('returns'));
+        // Current period
+        $cycleStart  = (int) ($company->vat_quarter_start_month ?? 1);
+        $currentPeriod = $this->getCurrentPeriod($cycleStart);
+        $prevPeriod    = $this->getPreviousPeriod($cycleStart);
+
+        // VAT so far in the current period (from invoices + bills)
+        $currentVAT = $this->calculateVATBoxes($companyId, $currentPeriod['from'], $currentPeriod['to']);
+
+        // Check if a return already exists for current period
+        $currentReturn = DB::table('vat_returns')
+            ->where('company_id', $companyId)
+            ->where('period_from', $currentPeriod['from'])
+            ->where('is_deleted', false)
+            ->first();
+
+        // Days until due
+        $daysUntilDue = now()->diffInDays($currentPeriod['due'], false);
+
+        return view('vat.index', compact(
+            'returns', 'company',
+            'currentPeriod', 'prevPeriod',
+            'currentVAT', 'currentReturn',
+            'daysUntilDue'
+        ));
+    }
+
+    public function pay(Request $request, $id)
+    {
+        $companyId = session('company_id');
+        $request->validate([
+            'amount_paid'  => 'required|numeric|min:0',
+            'payment_date' => 'required|date',
+        ]);
+
+        DB::table('vat_returns')
+            ->where('id', $id)
+            ->where('company_id', $companyId)
+            ->update([
+                'amount_paid'  => $request->amount_paid,
+                'payment_date' => $request->payment_date,
+                'status'       => 'PAID',
+                'updated_at'   => now(),
+            ]);
+
+        return redirect('/vat')->with('success', 'Payment recorded successfully.');
+    }
+
+    private function getCurrentPeriod(int $cycleStart): array
+    {
+        $month = (int) now()->month;
+        $year  = (int) now()->year;
+
+        // How many months into the current quarter are we? (0, 1, or 2)
+        $offset     = (($month - $cycleStart) % 3 + 3) % 3;
+        $startMonth = $month - $offset;
+        $startYear  = $year;
+
+        if ($startMonth < 1) {
+            $startMonth += 12;
+            $startYear  -= 1;
+        }
+
+        $endMonth = $startMonth + 2;
+        $endYear  = $startYear;
+        if ($endMonth > 12) {
+            $endMonth -= 12;
+            $endYear  += 1;
+        }
+
+        $from    = \Carbon\Carbon::create($startYear, $startMonth, 1)->startOfMonth();
+        $to      = \Carbon\Carbon::create($endYear, $endMonth, 1)->endOfMonth();
+        $due     = $to->copy()->addDays(28);
+
+        return [
+            'from'  => $from->toDateString(),
+            'to'    => $to->toDateString(),
+            'due'   => $due->toDateString(),
+            'label' => $from->format('M Y') . ' — ' . $to->format('M Y'),
+        ];
+    }
+
+    private function getPreviousPeriod(int $cycleStart): array
+    {
+        $month = (int) now()->month;
+        $year  = (int) now()->year;
+
+        $offset     = (($month - $cycleStart) % 3 + 3) % 3;
+        $startMonth = $month - $offset - 3; // one quarter back
+        $startYear  = $year;
+
+        while ($startMonth < 1) {
+            $startMonth += 12;
+            $startYear  -= 1;
+        }
+
+        $endMonth = $startMonth + 2;
+        $endYear  = $startYear;
+        if ($endMonth > 12) {
+            $endMonth -= 12;
+            $endYear  += 1;
+        }
+
+        $from = \Carbon\Carbon::create($startYear, $startMonth, 1)->startOfMonth();
+        $to   = \Carbon\Carbon::create($endYear, $endMonth, 1)->endOfMonth();
+        $due  = $to->copy()->addDays(28);
+
+        return [
+            'from'  => $from->toDateString(),
+            'to'    => $to->toDateString(),
+            'due'   => $due->toDateString(),
+            'label' => $from->format('M Y') . ' — ' . $to->format('M Y'),
+        ];
     }
 
     public function create(Request $request)

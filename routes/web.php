@@ -123,6 +123,7 @@ Route::middleware(['auth'])->group(function () {
 	Route::post('/vat', [VATController::class, 'store'])->name('vat.store');
 	Route::get('/vat/{id}', [VATController::class, 'show'])->name('vat.show');
 	Route::post('/vat/{id}/submit', [VATController::class, 'submit'])->name('vat.submit');
+	Route::post('/vat/{id}/pay',    [VATController::class, 'pay'])->name('vat.pay');
 
 	Route::get('/assets', [FixedAssetController::class, 'index'])->name('assets.index');
 	Route::get('/assets/create', [FixedAssetController::class, 'create'])->name('assets.create');
@@ -170,6 +171,7 @@ Route::middleware(['auth'])->group(function () {
 	Route::post('/data/import/customers', [DataController::class, 'importCustomers'])->name('data.import.customers');
 
 	Route::get('/reports/ar-ledger', [ReportController::class, 'arLedger'])->name('reports.ar_ledger');
+	Route::get('/reports/vat-ledger', [ReportController::class, 'vatLedger'])->name('reports.vat_ledger');
 	Route::get('/customers/{id}/details', [CustomerController::class, 'details'])->name('customers.details');
 	Route::post('/invoices/{id}/send-email', [InvoiceController::class, 'sendEmail'])->name('invoices.send_email');
 	Route::get('/pending-approval', fn() => view('auth.pending-approval'))->name('pending-approval');
