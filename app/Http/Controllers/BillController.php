@@ -235,8 +235,9 @@ class BillController extends Controller
 
         try {
             DB::transaction(function () use ($companyId, $bill, $lines, $period, $id, $apAccountId) {
-                $count    = DB::table('journal_entries')->where('company_id', $companyId)->count() + 1;
-                $jeNumber = 'JE-' . date('Y', strtotime($bill->bill_date)) . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
+                $jeYear   = date('Y', strtotime($bill->bill_date));
+                $count    = DB::table('journal_entries')->where('company_id', $companyId)->whereYear('entry_date', $jeYear)->count() + 1;
+                $jeNumber = 'JE-' . $jeYear . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
 
                 $jeId = DB::table('journal_entries')->insertGetId([
                     'company_id'    => $companyId,
@@ -410,8 +411,9 @@ class BillController extends Controller
 
         try {
             DB::transaction(function () use ($companyId, $bill, $amount, $request, $period, $id, $apAccountId) {
-                $count    = DB::table('journal_entries')->where('company_id', $companyId)->count() + 1;
-                $jeNumber = 'JE-' . date('Y', strtotime($request->payment_date)) . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
+                $jeYear   = date('Y', strtotime($request->payment_date));
+                $count    = DB::table('journal_entries')->where('company_id', $companyId)->whereYear('entry_date', $jeYear)->count() + 1;
+                $jeNumber = 'JE-' . $jeYear . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
 
                 $jeId = DB::table('journal_entries')->insertGetId([
                     'company_id'    => $companyId,

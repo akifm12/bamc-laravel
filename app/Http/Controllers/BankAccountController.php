@@ -155,8 +155,9 @@ class BankAccountController extends Controller
             return back()->with('error', 'No accounting period found for ' . $request->date . '. Please create a fiscal year first.');
         }
 
-        $count    = DB::table('journal_entries')->where('company_id', $companyId)->count() + 1;
-        $jeNumber = 'JE-' . date('Y', strtotime($request->date)) . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
+        $jeYear   = date('Y', strtotime($request->date));
+        $count    = DB::table('journal_entries')->where('company_id', $companyId)->whereYear('entry_date', $jeYear)->count() + 1;
+        $jeNumber = 'JE-' . $jeYear . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
 
         DB::transaction(function () use ($companyId, $request, $account, $amount, $isDebit, $period, $jeNumber) {
             $jeId = DB::table('journal_entries')->insertGetId([

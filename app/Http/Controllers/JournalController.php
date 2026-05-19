@@ -146,8 +146,9 @@ class JournalController extends Controller
             ->first();
 
         // Generate entry number
-        $count = DB::table('journal_entries')->where('company_id', $companyId)->count() + 1;
-        $entryNumber = 'JE-' . date('Y', strtotime($request->entry_date)) . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
+        $jeYear      = date('Y', strtotime($request->entry_date));
+        $count       = DB::table('journal_entries')->where('company_id', $companyId)->whereYear('entry_date', $jeYear)->count() + 1;
+        $entryNumber = 'JE-' . $jeYear . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
 
         $autoPost = $request->has('auto_post');
         $status   = $autoPost ? 'POSTED' : 'DRAFT';

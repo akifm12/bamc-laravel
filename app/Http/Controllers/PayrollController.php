@@ -243,8 +243,9 @@ class PayrollController extends Controller
 
             // Create journal entry if accounts provided
             if ($request->salary_expense_account && $request->salary_payable_account) {
-                $jeCount  = DB::table('journal_entries')->where('company_id', $companyId)->count() + 1;
-                $jeNumber = 'JE-' . date('Y', strtotime($request->pay_date)) . '-' . str_pad($jeCount, 5, '0', STR_PAD_LEFT);
+                $jeYear   = date('Y', strtotime($request->pay_date));
+                $jeCount  = DB::table('journal_entries')->where('company_id', $companyId)->whereYear('entry_date', $jeYear)->count() + 1;
+                $jeNumber = 'JE-' . $jeYear . '-' . str_pad($jeCount, 5, '0', STR_PAD_LEFT);
 
                 $jeId = DB::table('journal_entries')->insertGetId([
                     'company_id'    => $companyId,

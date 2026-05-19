@@ -160,8 +160,9 @@ class FixedAssetController extends Controller
 
         DB::transaction(function () use ($companyId, $asset, $deprAmount, $request, $period, $id) {
             // Journal entry
-            $count    = DB::table('journal_entries')->where('company_id', $companyId)->count() + 1;
-            $jeNumber = 'JE-' . date('Y', strtotime($request->depreciation_date)) . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
+            $jeYear   = date('Y', strtotime($request->depreciation_date));
+            $count    = DB::table('journal_entries')->where('company_id', $companyId)->whereYear('entry_date', $jeYear)->count() + 1;
+            $jeNumber = 'JE-' . $jeYear . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
 
             $jeId = DB::table('journal_entries')->insertGetId([
                 'company_id'    => $companyId,
