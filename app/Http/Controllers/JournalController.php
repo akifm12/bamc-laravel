@@ -207,6 +207,7 @@ class JournalController extends Controller
             ->join('accounts', 'accounts.id', '=', 'journal_lines.account_id')
             ->where('journal_lines.journal_entry_id', $id)
             ->select('journal_lines.*', 'accounts.code', 'accounts.name')
+            ->orderByRaw('CASE WHEN journal_lines.debit_amount > 0 THEN 0 ELSE 1 END')
             ->orderBy('journal_lines.line_number')
             ->get();
 
@@ -258,6 +259,7 @@ public function edit($id)
 
     $lines = DB::table('journal_lines')
         ->where('journal_entry_id', $id)
+        ->orderByRaw('CASE WHEN debit_amount > 0 THEN 0 ELSE 1 END')
         ->orderBy('line_number')
         ->get();
 
