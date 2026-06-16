@@ -36,6 +36,8 @@ class DataController extends Controller
                 ->join('accounts', 'accounts.id', '=', 'journal_lines.account_id')
                 ->where('journal_lines.journal_entry_id', $je->id)
                 ->select('journal_lines.*', 'accounts.code', 'accounts.name as account_name')
+                ->orderByRaw('CASE WHEN journal_lines.debit_amount > 0 THEN 0 ELSE 1 END')
+                ->orderBy('journal_lines.line_number')
                 ->get();
 
             foreach ($lines as $line) {
