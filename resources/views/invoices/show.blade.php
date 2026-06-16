@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Invoice — ' . $invoice->invoice_number)
+@section('title', 'Invoice - ' . $invoice->invoice_number)
 
 @section('content')
 
@@ -28,7 +28,7 @@
                 @endphp
                 <span class="text-xs px-3 py-1 rounded-full {{ $statusColor }}">{{ strtoupper($status) }}</span>
                 <p class="text-sm text-gray-500">Date: {{ $invoice->invoice_date }}</p>
-                <p class="text-sm text-gray-500">Due: {{ $invoice->due_date ?? '—' }}</p>
+                <p class="text-sm text-gray-500">Due: {{ $invoice->due_date ?? '-' }}</p>
 
                 <div class="flex gap-2 mt-2">
                     <a href="/invoices/{{ $invoice->id }}/pdf"
@@ -122,7 +122,7 @@
                 <tr class="border-b border-gray-50 hover:bg-gray-50">
                     <td class="px-4 py-2 text-gray-400 text-xs">{{ $line->line_number }}</td>
                     <td class="px-4 py-2 text-gray-800">{{ $line->description }}</td>
-                    <td class="px-4 py-2 text-gray-500 text-xs">{{ $line->account_name ?? '—' }}</td>
+                    <td class="px-4 py-2 text-gray-500 text-xs">{{ $line->account_name ?? '-' }}</td>
                     <td class="px-4 py-2 text-right">{{ number_format($line->quantity, 2) }}</td>
                     <td class="px-4 py-2 text-right">{{ number_format($line->unit_price, 2) }}</td>
                     <td class="px-4 py-2 text-right">{{ number_format($line->vat_amount, 2) }}</td>

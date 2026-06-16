@@ -29,15 +29,15 @@
             <tr class="border-b border-gray-50 hover:bg-gray-50">
                 <td class="px-4 py-2 font-mono text-xs text-gray-500">{{ $v->code }}</td>
                 <td class="px-4 py-2 font-medium text-gray-800">{{ $v->name }}</td>
-                <td class="px-4 py-2 text-gray-500">{{ $v->trn ?? '—' }}</td>
-                <td class="px-4 py-2 text-gray-500">{{ $v->email ?? '—' }}</td>
-                <td class="px-4 py-2 text-gray-500">{{ $v->phone ?? '—' }}</td>
-                <td class="px-4 py-2 text-gray-500">{{ $v->emirate ?? '—' }}</td>
+                <td class="px-4 py-2 text-gray-500">{{ $v->trn ?? '-' }}</td>
+                <td class="px-4 py-2 text-gray-500">{{ $v->email ?? '-' }}</td>
+                <td class="px-4 py-2 text-gray-500">{{ $v->phone ?? '-' }}</td>
+                <td class="px-4 py-2 text-gray-500">{{ $v->emirate ?? '-' }}</td>
                 <td class="px-4 py-2 text-center">
                     @if($v->is_vat_registered)
                         <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">VAT Reg</span>
                     @else
-                        <span class="text-xs text-gray-300">—</span>
+                        <span class="text-xs text-gray-300">-</span>
                     @endif
                 </td>
                 <td class="px-4 py-2 text-center">

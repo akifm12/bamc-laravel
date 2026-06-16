@@ -206,7 +206,7 @@
 </div>
 @endif
 
-<!-- BANK DETAILS — fixed to bottom above footer -->
+<!-- BANK DETAILS - fixed to bottom above footer -->
 @if($company->bank_name || $company->bank_account_number || $company->bank_iban)
 <div class="bank-section">
     <h4>Bank Details</h4>

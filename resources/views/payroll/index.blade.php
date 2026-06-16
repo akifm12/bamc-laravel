@@ -56,7 +56,7 @@
             @endphp
             <tr class="border-b border-gray-50 hover:bg-gray-50">
                 <td class="px-4 py-2 font-mono text-xs text-gray-600">{{ $run->run_number }}</td>
-                <td class="px-4 py-2 text-gray-600">{{ $run->pay_period_start }} — {{ $run->pay_period_end }}</td>
+                <td class="px-4 py-2 text-gray-600">{{ $run->pay_period_start }} - {{ $run->pay_period_end }}</td>
                 <td class="px-4 py-2 text-gray-600">{{ $run->pay_date }}</td>
                 <td class="px-4 py-2 text-center text-gray-600">{{ $run->employee_count }}</td>
                 <td class="px-4 py-2 text-right">{{ number_format($run->total_basic_salary, 2) }}</td>

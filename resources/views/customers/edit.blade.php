@@ -92,7 +92,7 @@
             <div>
                 <label class="text-xs text-gray-500 block mb-1">Emirate</label>
                 <select name="emirate" class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
-                    <option value="">— Select —</option>
+                    <option value="">- Select -</option>
                     @foreach($emirates as $e)
                         <option value="{{ $e }}" {{ $customer->emirate == $e ? 'selected' : '' }}>{{ $e }}</option>
                     @endforeach
@@ -113,10 +113,10 @@
             <div>
                 <label class="text-xs text-gray-500 block mb-1">AR Account</label>
                 <select name="ar_account_id" class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
-                    <option value="">— Select —</option>
+                    <option value="">- Select -</option>
                     @foreach($accounts as $a)
                         <option value="{{ $a->id }}" {{ $customer->ar_account_id == $a->id ? 'selected' : '' }}>
-                            {{ $a->code }} — {{ $a->name }}
+                            {{ $a->code }} - {{ $a->name }}
                         </option>
                     @endforeach
                 </select>

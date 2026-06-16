@@ -23,7 +23,7 @@
                 <select name="customer_id" id="customer_id" required
                     class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm"
                     onchange="fetchCustomerDetails(this.value)">
-                    <option value="">— Select Customer —</option>
+                    <option value="">- Select Customer -</option>
                     @foreach($customers as $c)
                         <option value="{{ $c->id }}"
                             {{ (isset($selectedCustomer) && $selectedCustomer->id == $c->id) ? 'selected' : '' }}>
@@ -144,7 +144,7 @@ async function fetchCustomerDetails(customerId) {
         const data = await res.json();
         const info = document.getElementById('customer-info');
         if (data.client_number) {
-            info.textContent = `Client #${String(data.client_number).padStart(2,'0')} — ${data.client_acronym}`;
+            info.textContent = `Client #${String(data.client_number).padStart(2,'0')} - ${data.client_acronym}`;
         }
         if (data.revenue_account) {
             defaultRevenueAccountId = data.revenue_account.id;
@@ -165,12 +165,12 @@ async function fetchCustomerDetails(customerId) {
 function buildAccountSelect(index, selectedId = null) {
     const useId = selectedId ?? defaultRevenueAccountId;
     let html = `<select name="accounts[${index}]" class="w-full border border-gray-200 rounded px-2 py-1 text-xs" onchange="updateTotals()">`;
-    html += `<option value="">— Account —</option>`;
+    html += `<option value="">- Account -</option>`;
     for (const [type, accounts] of Object.entries(accountGroups)) {
         html += `<optgroup label="${typeLabels[type] || type}">`;
         accounts.forEach(a => {
             const sel = useId == a.id ? 'selected' : '';
-            html += `<option value="${a.id}" ${sel}>${a.code} — ${a.name}</option>`;
+            html += `<option value="${a.id}" ${sel}>${a.code} - ${a.name}</option>`;
         });
         html += `</optgroup>`;
     }
@@ -264,7 +264,7 @@ function updateTotals() {
     document.getElementById('total-amount').textContent   = (subtotal + totalVat).toFixed(2);
 }
 
-// Init — if customer pre-selected, fetch details
+// Init - if customer pre-selected, fetch details
 @if(isset($selectedCustomer))
 fetchCustomerDetails({{ $selectedCustomer->id }});
 @endif

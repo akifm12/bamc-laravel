@@ -59,13 +59,13 @@ class VATController extends Controller
                 'from'  => $from->toDateString(),
                 'to'    => $to->toDateString(),
                 'due'   => $due->toDateString(),
-                'label' => $from->format('M Y') . ' — ' . $to->format('M Y'),
+                'label' => $from->format('M Y') . ' - ' . $to->format('M Y'),
             ];
             $cursor->addMonths(3);
         }
         $allPeriods = array_reverse($allPeriods); // newest first
 
-        // Two aggregate queries — invoices and bills — grouped by month
+        // Two aggregate queries - invoices and bills - grouped by month
         $invoicesByMonth = DB::table('invoices')
             ->where('company_id', $companyId)
             ->where('is_deleted', false)
@@ -164,7 +164,7 @@ class VATController extends Controller
             'from'  => $from->toDateString(),
             'to'    => $to->toDateString(),
             'due'   => $due->toDateString(),
-            'label' => $from->format('M Y') . ' — ' . $to->format('M Y'),
+            'label' => $from->format('M Y') . ' - ' . $to->format('M Y'),
         ];
     }
 
@@ -197,7 +197,7 @@ class VATController extends Controller
             'from'  => $from->toDateString(),
             'to'    => $to->toDateString(),
             'due'   => $due->toDateString(),
-            'label' => $from->format('M Y') . ' — ' . $to->format('M Y'),
+            'label' => $from->format('M Y') . ' - ' . $to->format('M Y'),
         ];
     }
 
@@ -294,7 +294,7 @@ class VATController extends Controller
 
     private function calculateVATBoxes(int $companyId, string $dateFrom, string $dateTo): array
     {
-        // Output VAT — from invoice VAT amounts
+        // Output VAT - from invoice VAT amounts
         $outputVAT = DB::table('invoices')
             ->where('company_id', $companyId)
             ->where('is_deleted', false)
@@ -306,7 +306,7 @@ class VATController extends Controller
             ')
             ->first();
 
-        // Input VAT — from bill VAT amounts
+        // Input VAT - from bill VAT amounts
         $inputVAT = DB::table('bills')
             ->where('company_id', $companyId)
             ->where('is_deleted', false)

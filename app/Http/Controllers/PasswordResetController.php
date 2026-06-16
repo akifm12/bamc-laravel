@@ -55,7 +55,7 @@ class PasswordResetController extends Controller
                 $email = (new \Symfony\Component\Mime\Email())
                     ->from(new \Symfony\Component\Mime\Address($fromAddr, $fromName))
                     ->to($user->email)
-                    ->subject('Password Reset — BAMC Accounting')
+                    ->subject('Password Reset - BAMC Accounting')
                     ->html("
                         <div style='font-family:Arial,sans-serif;max-width:500px;margin:40px auto;color:#1a1a2e'>
                         <h2 style='color:#006400'>🏦 BAMC Accounting</h2>

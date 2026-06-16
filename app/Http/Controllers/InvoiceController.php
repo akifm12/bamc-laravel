@@ -334,7 +334,7 @@ class InvoiceController extends Controller
             return redirect("/invoices/{$id}")->with('error', 'No accounting period found for this invoice date. Please create a fiscal year and periods first.');
         }
 
-        // Resolve AR account — customer specific or company default
+        // Resolve AR account - customer specific or company default
         $arAccountId = $invoice->ar_account_id;
         if (!$arAccountId) {
             $arAccountId = DB::table('accounts')
@@ -360,7 +360,7 @@ class InvoiceController extends Controller
                     'entry_date'    => $invoice->invoice_date,
                     'journal_type'  => 'GENERAL',
                     'status'        => 'POSTED',
-                    'description'   => "Invoice {$invoice->invoice_number} — {$invoice->customer_name}",
+                    'description'   => "Invoice {$invoice->invoice_number} - {$invoice->customer_name}",
                     'reference'     => $invoice->invoice_number,
                     'total_debit'   => $invoice->total_amount,
                     'total_credit'  => $invoice->total_amount,
@@ -382,7 +382,7 @@ class InvoiceController extends Controller
                     'company_id'       => $companyId,
                     'account_id'       => $arAccountId,
                     'line_number'      => $lineNum++,
-                    'description'      => "AR — {$invoice->customer_name}",
+                    'description'      => "AR - {$invoice->customer_name}",
                     'debit_amount'     => $invoice->total_amount,
                     'credit_amount'    => 0,
                     'currency_code'    => 'AED',
@@ -644,7 +644,7 @@ class InvoiceController extends Controller
                     'entry_date'    => $request->payment_date,
                     'journal_type'  => 'BANK_RECEIPT',
                     'status'        => 'POSTED',
-                    'description'   => "Payment received — {$invoice->invoice_number}",
+                    'description'   => "Payment received - {$invoice->invoice_number}",
                     'reference'     => $invoice->invoice_number,
                     'total_debit'   => $amount,
                     'total_credit'  => $amount,
@@ -664,7 +664,7 @@ class InvoiceController extends Controller
                     'company_id'       => $companyId,
                     'account_id'       => $request->gl_account_id,
                     'line_number'      => 1,
-                    'description'      => "Payment received — {$invoice->invoice_number}",
+                    'description'      => "Payment received - {$invoice->invoice_number}",
                     'debit_amount'     => $amount,
                     'credit_amount'    => 0,
                     'currency_code'    => 'AED',
@@ -678,7 +678,7 @@ class InvoiceController extends Controller
                     'company_id'       => $companyId,
                     'account_id'       => $arAccountId,
                     'line_number'      => 2,
-                    'description'      => "AR cleared — {$invoice->customer_name}",
+                    'description'      => "AR cleared - {$invoice->customer_name}",
                     'debit_amount'     => 0,
                     'credit_amount'    => $amount,
                     'currency_code'    => 'AED',

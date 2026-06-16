@@ -40,8 +40,8 @@
             <tr class="border-b border-gray-50 hover:bg-gray-50">
                 <td class="px-4 py-2 font-mono text-xs text-gray-500">{{ $emp->employee_id }}</td>
                 <td class="px-4 py-2 font-medium text-gray-800">{{ $emp->full_name }}</td>
-                <td class="px-4 py-2 text-gray-600">{{ $emp->designation ?? '—' }}</td>
-                <td class="px-4 py-2 text-gray-600">{{ $emp->nationality ?? '—' }}</td>
+                <td class="px-4 py-2 text-gray-600">{{ $emp->designation ?? '-' }}</td>
+                <td class="px-4 py-2 text-gray-600">{{ $emp->nationality ?? '-' }}</td>
                 <td class="px-4 py-2 text-gray-600">{{ $emp->join_date }}</td>
                 <td class="px-4 py-2 text-right">{{ number_format($emp->basic_salary, 2) }}</td>
                 <td class="px-4 py-2 text-right font-semibold">{{ number_format($emp->gross_salary, 2) }}</td>

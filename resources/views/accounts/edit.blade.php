@@ -32,7 +32,7 @@
                     <label class="text-xs text-gray-500 block mb-1">Account Type *</label>
                     <select name="account_type" required onchange="setNormalBalance(this.value)"
                         class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
-                        <option value="">— Select —</option>
+                        <option value="">- Select -</option>
                         <option value="ASSET"     {{ old('account_type', $account->account_type) == 'ASSET'     ? 'selected' : '' }}>Asset</option>
                         <option value="LIABILITY" {{ old('account_type', $account->account_type) == 'LIABILITY' ? 'selected' : '' }}>Liability</option>
                         <option value="EQUITY"    {{ old('account_type', $account->account_type) == 'EQUITY'    ? 'selected' : '' }}>Equity</option>
@@ -62,11 +62,11 @@
                 <div>
                     <label class="text-xs text-gray-500 block mb-1">Parent Account</label>
                     <select name="parent_id" class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
-                        <option value="">— None (Top Level) —</option>
+                        <option value="">- None (Top Level) -</option>
                         @foreach($accounts as $acc)
                             <option value="{{ $acc->id }}"
                                 {{ old('parent_id', $account->parent_id) == $acc->id ? 'selected' : '' }}>
-                                {{ $acc->code }} — {{ $acc->name }}
+                                {{ $acc->code }} - {{ $acc->name }}
                             </option>
                         @endforeach
                     </select>
@@ -187,7 +187,7 @@ function setNormalBalance(type) {
                     <label class="text-xs text-gray-500 block mb-1">Account Type *</label>
                     <select name="account_type" required onchange="setNormalBalance(this.value)"
                         class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
-                        <option value="">— Select —</option>
+                        <option value="">- Select -</option>
                         <option value="ASSET"     {{ old('account_type') == 'ASSET'     ? 'selected' : '' }}>Asset</option>
                         <option value="LIABILITY" {{ old('account_type') == 'LIABILITY' ? 'selected' : '' }}>Liability</option>
                         <option value="EQUITY"    {{ old('account_type') == 'EQUITY'    ? 'selected' : '' }}>Equity</option>
@@ -217,11 +217,11 @@ function setNormalBalance(type) {
                 <div>
                     <label class="text-xs text-gray-500 block mb-1">Parent Account</label>
                     <select name="parent_id" class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
-                        <option value="">— None (Top Level) —</option>
+                        <option value="">- None (Top Level) -</option>
                         @foreach($accounts as $acc)
                             <option value="{{ $acc->id }}"
                                 {{ (old('parent_id', $parentId) == $acc->id) ? 'selected' : '' }}>
-                                {{ $acc->code }} — {{ $acc->name }}
+                                {{ $acc->code }} - {{ $acc->name }}
                             </option>
                         @endforeach
                     </select>

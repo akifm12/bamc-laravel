@@ -84,7 +84,7 @@
                 </tr>
                 <tr id="balance-row">
                     <td colspan="5" class="px-4 py-2 text-center text-xs" id="balance-indicator">
-                        —
+                        -
                     </td>
                 </tr>
             </tfoot>
@@ -126,11 +126,11 @@ const typeLabels = {
 
 function buildSelect(name, index) {
     let html = `<select name="${name}[${index}]" class="w-full border border-gray-200 rounded px-2 py-1 text-sm" onchange="updateTotals()">`;
-    html += `<option value="">— Select Account —</option>`;
+    html += `<option value="">- Select Account -</option>`;
     for (const [type, accounts] of Object.entries(accountGroups)) {
         html += `<optgroup label="── ${typeLabels[type] || type} ──">`;
         accounts.forEach(a => {
-            html += `<option value="${a.id}">${a.code} — ${a.name}</option>`;
+            html += `<option value="${a.id}">${a.code} - ${a.name}</option>`;
         });
         html += `</optgroup>`;
     }
@@ -191,7 +191,7 @@ function updateTotals() {
     const diff = Math.abs(debit - credit);
     const indicator = document.getElementById('balance-indicator');
     if (debit === 0 && credit === 0) {
-        indicator.innerHTML = '—';
+        indicator.innerHTML = '-';
         indicator.className = 'px-4 py-2 text-center text-xs text-gray-400';
     } else if (diff < 0.01) {
         indicator.innerHTML = '✅ Balanced';

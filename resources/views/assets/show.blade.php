@@ -68,7 +68,7 @@
             <h3 class="font-semibold text-gray-700 text-sm mb-3">Asset Information</h3>
             <div class="space-y-2 text-sm">
                 <p><span class="text-gray-400">Purchase Date:</span> {{ $asset->purchase_date }}</p>
-                <p><span class="text-gray-400">In Service:</span> {{ $asset->in_service_date ?? '—' }}</p>
+                <p><span class="text-gray-400">In Service:</span> {{ $asset->in_service_date ?? '-' }}</p>
                 @if($asset->serial_number)
                     <p><span class="text-gray-400">Serial No.:</span> {{ $asset->serial_number }}</p>
                 @endif

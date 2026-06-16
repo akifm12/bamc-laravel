@@ -42,7 +42,7 @@
             <div>
                 <label class="text-xs text-gray-500 block mb-1">Gender</label>
                 <select name="gender" class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
-                    <option value="">— Select —</option>
+                    <option value="">- Select -</option>
                     <option value="male">Male</option>
                     <option value="female">Female</option>
                 </select>
@@ -87,7 +87,7 @@
             <div>
                 <label class="text-xs text-gray-500 block mb-1">Department</label>
                 <select name="department_id" class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
-                    <option value="">— Select —</option>
+                    <option value="">- Select -</option>
                     @foreach($departments as $dept)
                         <option value="{{ $dept->id }}">{{ $dept->name }}</option>
                     @endforeach

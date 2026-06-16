@@ -119,7 +119,7 @@
                 <tr class="border-b border-gray-50 hover:bg-gray-50">
                     <td class="px-4 py-2 font-mono text-xs">{{ $bill->bill_number }}</td>
                     <td class="px-4 py-2">{{ $bill->bill_date }}</td>
-                    <td class="px-4 py-2">{{ $bill->due_date ?? '—' }}</td>
+                    <td class="px-4 py-2">{{ $bill->due_date ?? '-' }}</td>
                     <td class="px-4 py-2 text-right">{{ number_format($bill->total_amount, 2) }}</td>
                     <td class="px-4 py-2 text-right {{ $bill->amount_due > 0 ? 'text-red-600' : 'text-green-600' }}">
                         {{ number_format($bill->amount_due, 2) }}

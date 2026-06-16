@@ -26,7 +26,7 @@ class InvoiceApproved extends Mailable
         	replyTo: [
             	new \Illuminate\Mail\Mailables\Address('accounts@bluearrow.ae', $this->company->name),
         	],
-        	subject: "Invoice {$this->invoice->invoice_number} — {$this->company->name}",
+        	subject: "Invoice {$this->invoice->invoice_number} - {$this->company->name}",
     	);
 	}
 

@@ -57,7 +57,7 @@
             <div>
                 <label class="text-xs text-gray-500 block mb-1">Company</label>
                 <select name="company_id" class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
-                    <option value="">— None —</option>
+                    <option value="">- None -</option>
                     @foreach($companies as $company)
                         <option value="{{ $company->id }}">{{ $company->name }}</option>
                     @endforeach

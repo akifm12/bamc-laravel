@@ -17,7 +17,7 @@
     <div class="px-5 py-3 border-b {{ $daysUntilDue < 0 ? 'border-red-200 bg-red-100' : ($daysUntilDue <= 14 ? 'border-yellow-200 bg-yellow-100' : 'border-blue-100 bg-blue-100') }} flex items-center justify-between">
         <div class="flex items-center gap-3">
             <span class="font-semibold text-sm {{ $daysUntilDue < 0 ? 'text-red-800' : 'text-blue-800' }}">
-                Current VAT Period — {{ $currentPeriod['label'] }}
+                Current VAT Period - {{ $currentPeriod['label'] }}
             </span>
             <span class="text-xs text-gray-500">{{ $cycleLabel }}</span>
         </div>
@@ -49,7 +49,7 @@
                 AED {{ number_format(abs($currentVAT['netVat']), 2) }}
                 @if($currentVAT['netVat'] < 0) <span class="text-sm font-normal">(refund)</span>@endif
             </p>
-            <p class="text-xs text-gray-400 mt-0.5">As of today — final at period close</p>
+            <p class="text-xs text-gray-400 mt-0.5">As of today - final at period close</p>
         </div>
         <div class="flex flex-col justify-center">
             @if($currentReturn)
@@ -161,19 +161,19 @@
                 <td class="px-4 py-2 font-medium text-gray-700 text-xs">{{ $q['label'] }}</td>
                 <td class="px-4 py-2 text-xs text-gray-500">{{ \Carbon\Carbon::parse($q['due'])->format('d M Y') }}</td>
                 <td class="px-4 py-2 text-right text-xs text-gray-600">
-                    {{ $q['sales'] > 0 ? number_format($q['sales'], 2) : '—' }}
+                    {{ $q['sales'] > 0 ? number_format($q['sales'], 2) : '-' }}
                 </td>
                 <td class="px-4 py-2 text-right text-xs font-medium text-blue-700">
-                    {{ $q['outputVAT'] > 0 ? number_format($q['outputVAT'], 2) : '—' }}
+                    {{ $q['outputVAT'] > 0 ? number_format($q['outputVAT'], 2) : '-' }}
                 </td>
                 <td class="px-4 py-2 text-right text-xs text-gray-600">
-                    {{ $q['purchases'] > 0 ? number_format($q['purchases'], 2) : '—' }}
+                    {{ $q['purchases'] > 0 ? number_format($q['purchases'], 2) : '-' }}
                 </td>
                 <td class="px-4 py-2 text-right text-xs font-medium text-orange-600">
-                    {{ $q['inputVAT'] > 0 ? number_format($q['inputVAT'], 2) : '—' }}
+                    {{ $q['inputVAT'] > 0 ? number_format($q['inputVAT'], 2) : '-' }}
                 </td>
                 <td class="px-4 py-2 text-right font-semibold text-xs {{ $netDue > 0 ? 'text-red-600' : ($netDue < 0 ? 'text-green-600' : 'text-gray-400') }}">
-                    @if(abs($netDue) < 0.01) — @elseif($netDue < 0) ({{ number_format(abs($netDue), 2) }}) @else {{ number_format($netDue, 2) }} @endif
+                    @if(abs($netDue) < 0.01) - @elseif($netDue < 0) ({{ number_format(abs($netDue), 2) }}) @else {{ number_format($netDue, 2) }} @endif
                 </td>
                 <td class="px-4 py-2 text-right text-xs text-green-700">
                     @if(($q['amountPaid'] ?? 0) > 0)
@@ -182,11 +182,11 @@
                             <br><span class="text-gray-400">{{ \Carbon\Carbon::parse($r->payment_date)->format('d M Y') }}</span>
                         @endif
                     @else
-                        —
+                        -
                     @endif
                 </td>
                 <td class="px-4 py-2 text-right font-semibold text-xs {{ abs($balance) < 0.01 ? 'text-green-600' : 'text-red-600' }}">
-                    @if(!$hasActivity) — @elseif(abs($balance) < 0.01) ✅ Nil @else {{ number_format($balance, 2) }} @endif
+                    @if(!$hasActivity) - @elseif(abs($balance) < 0.01) ✅ Nil @else {{ number_format($balance, 2) }} @endif
                 </td>
                 <td class="px-4 py-2 text-center">
                     <span class="text-xs px-2 py-0.5 rounded-full {{ $statusColor }}">{{ $statusLabel }}</span>

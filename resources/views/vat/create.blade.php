@@ -54,7 +54,7 @@
 
         <div class="space-y-3">
             <div class="grid grid-cols-3 gap-4 items-center">
-                <label class="text-sm text-gray-600 col-span-1">Box 1 — Standard Rated Sales</label>
+                <label class="text-sm text-gray-600 col-span-1">Box 1 - Standard Rated Sales</label>
                 <input type="number" name="box1_standard_rated_sales"
                     value="{{ number_format($standardSales, 2, '.', '') }}"
                     step="0.01" class="border border-gray-200 rounded px-3 py-1.5 text-sm text-right">
@@ -64,19 +64,19 @@
                     class="border border-gray-200 rounded px-3 py-1.5 text-sm text-right">
             </div>
             <div class="grid grid-cols-3 gap-4 items-center">
-                <label class="text-sm text-gray-600">Box 2 — Zero Rated Sales</label>
+                <label class="text-sm text-gray-600">Box 2 - Zero Rated Sales</label>
                 <input type="number" name="box2_zero_rated_sales" value="0"
                     step="0.01" class="border border-gray-200 rounded px-3 py-1.5 text-sm text-right">
                 <span class="text-xs text-gray-400">0%</span>
             </div>
             <div class="grid grid-cols-3 gap-4 items-center">
-                <label class="text-sm text-gray-600">Box 3 — Exempt Sales</label>
+                <label class="text-sm text-gray-600">Box 3 - Exempt Sales</label>
                 <input type="number" name="box3_exempt_sales" value="0"
                     step="0.01" class="border border-gray-200 rounded px-3 py-1.5 text-sm text-right">
                 <span class="text-xs text-gray-400">Exempt</span>
             </div>
             <div class="grid grid-cols-3 gap-4 items-center">
-                <label class="text-sm text-gray-600">Box 4 — Goods Imported</label>
+                <label class="text-sm text-gray-600">Box 4 - Goods Imported</label>
                 <input type="number" name="box4_goods_imported" value="0"
                     step="0.01" class="border border-gray-200 rounded px-3 py-1.5 text-sm text-right">
                 <input type="number" name="box4_vat_amount" value="0"
@@ -84,7 +84,7 @@
                     class="border border-gray-200 rounded px-3 py-1.5 text-sm text-right">
             </div>
             <div class="grid grid-cols-3 gap-4 items-center">
-                <label class="text-sm text-gray-600">Box 5 — Reverse Charge</label>
+                <label class="text-sm text-gray-600">Box 5 - Reverse Charge</label>
                 <input type="number" name="box5_reverse_charge" value="0"
                     step="0.01" class="border border-gray-200 rounded px-3 py-1.5 text-sm text-right">
                 <input type="number" name="box5_vat_amount" value="0"
@@ -92,7 +92,7 @@
                     class="border border-gray-200 rounded px-3 py-1.5 text-sm text-right">
             </div>
             <div class="grid grid-cols-3 gap-4 items-center border-t border-gray-100 pt-3">
-                <label class="text-sm font-semibold text-gray-700">Box 6 — Total Output Tax</label>
+                <label class="text-sm font-semibold text-gray-700">Box 6 - Total Output Tax</label>
                 <span></span>
                 <input type="number" name="box6_total_output_tax"
                     id="box6"
@@ -110,7 +110,7 @@
 
         <div class="space-y-3">
             <div class="grid grid-cols-3 gap-4 items-center">
-                <label class="text-sm text-gray-600">Box 7 — Standard Rated Purchases</label>
+                <label class="text-sm text-gray-600">Box 7 - Standard Rated Purchases</label>
                 <input type="number" name="box7_standard_purchases"
                     value="{{ number_format($standardPurchases, 2, '.', '') }}"
                     step="0.01" class="border border-gray-200 rounded px-3 py-1.5 text-sm text-right">
@@ -120,7 +120,7 @@
                     class="border border-gray-200 rounded px-3 py-1.5 text-sm text-right">
             </div>
             <div class="grid grid-cols-3 gap-4 items-center">
-                <label class="text-sm text-gray-600">Box 8 — Reverse Charge Purchases</label>
+                <label class="text-sm text-gray-600">Box 8 - Reverse Charge Purchases</label>
                 <input type="number" name="box8_reverse_charge_purchases" value="0"
                     step="0.01" class="border border-gray-200 rounded px-3 py-1.5 text-sm text-right">
                 <input type="number" name="box8_recoverable_vat" value="0"
@@ -128,7 +128,7 @@
                     class="border border-gray-200 rounded px-3 py-1.5 text-sm text-right">
             </div>
             <div class="grid grid-cols-3 gap-4 items-center border-t border-gray-100 pt-3">
-                <label class="text-sm font-semibold text-gray-700">Box 9 — Total Input Tax</label>
+                <label class="text-sm font-semibold text-gray-700">Box 9 - Total Input Tax</label>
                 <span></span>
                 <input type="number" name="box9_total_input_tax"
                     id="box9"
@@ -144,26 +144,26 @@
         <h3 class="font-semibold text-gray-700 text-sm mb-4">Net VAT Calculation</h3>
         <div class="space-y-3">
             <div class="grid grid-cols-3 gap-4 items-center">
-                <label class="text-sm text-gray-600">Box 10 — Adjustment</label>
+                <label class="text-sm text-gray-600">Box 10 - Adjustment</label>
                 <span></span>
                 <input type="number" name="box10_adjustment" value="0" step="0.01"
                     class="border border-gray-200 rounded px-3 py-1.5 text-sm text-right">
             </div>
             <div class="grid grid-cols-3 gap-4 items-center">
-                <label class="text-sm font-semibold text-gray-700">Box 11 — Net VAT Due</label>
+                <label class="text-sm font-semibold text-gray-700">Box 11 - Net VAT Due</label>
                 <span></span>
                 <div class="border border-gray-200 rounded px-3 py-1.5 text-sm text-right font-semibold bg-gray-50">
                     AED {{ number_format($netVat, 2) }}
                 </div>
             </div>
             <div class="grid grid-cols-3 gap-4 items-center">
-                <label class="text-sm text-gray-600">Box 12 — VAT on Imports</label>
+                <label class="text-sm text-gray-600">Box 12 - VAT on Imports</label>
                 <span></span>
                 <input type="number" name="box12_vat_on_imports" value="0" step="0.01"
                     class="border border-gray-200 rounded px-3 py-1.5 text-sm text-right">
             </div>
             <div class="grid grid-cols-3 gap-4 items-center border-t-2 border-gray-200 pt-3">
-                <label class="text-base font-bold text-gray-800">Box 13 — Net VAT Payable</label>
+                <label class="text-base font-bold text-gray-800">Box 13 - Net VAT Payable</label>
                 <span></span>
                 <div class="border-2 border-{{ $netVat > 0 ? 'red' : 'green' }}-300 rounded px-3 py-2 text-sm text-right font-bold text-{{ $netVat > 0 ? 'red' : 'green' }}-700 bg-{{ $netVat > 0 ? 'red' : 'green' }}-50 text-lg">
                     AED {{ number_format($netVat, 2) }}

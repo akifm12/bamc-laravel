@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Record Payment — ' . $bill->bill_number)
+@section('title', 'Record Payment - ' . $bill->bill_number)
 
 @section('content')
 
@@ -8,7 +8,7 @@
 
     <div class="bg-white rounded-lg border border-gray-200 p-5 mb-4">
         <h2 class="font-semibold text-gray-700 mb-1">Record Payment</h2>
-        <p class="text-sm text-gray-500">{{ $bill->bill_number }} — {{ $bill->vendor_name }}</p>
+        <p class="text-sm text-gray-500">{{ $bill->bill_number }} - {{ $bill->vendor_name }}</p>
         <div class="mt-3 grid grid-cols-3 gap-3 text-sm">
             <div>
                 <p class="text-xs text-gray-400">Bill Total</p>
@@ -52,7 +52,7 @@
                 <input type="radio" name="gl_account_id" value="{{ $bank->gl_account_id }}" required>
                 <div>
                     <p class="text-sm font-medium text-gray-700">{{ $bank->account_name }}</p>
-                    <p class="text-xs text-gray-400">{{ $bank->bank_name }} — {{ $bank->account_number }}</p>
+                    <p class="text-xs text-gray-400">{{ $bank->bank_name }} - {{ $bank->account_number }}</p>
                 </div>
             </label>
             @endforeach

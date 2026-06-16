@@ -49,7 +49,7 @@
                 <option value="">All Accounts</option>
                 @foreach($accounts as $acc)
                     <option value="{{ $acc->id }}" {{ ($accountId ?? '') == $acc->id ? 'selected' : '' }}>
-                        {{ $acc->code }} — {{ $acc->name }}
+                        {{ $acc->code }} - {{ $acc->name }}
                     </option>
                 @endforeach
             </select>

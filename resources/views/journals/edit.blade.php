@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Edit Journal — ' . $journal->entry_number)
+@section('title', 'Edit Journal - ' . $journal->entry_number)
 
 @section('content')
 
@@ -12,7 +12,7 @@
 
     <div class="bg-white rounded-lg border border-gray-200 p-5 mb-4">
         <div class="flex items-center justify-between mb-4">
-            <h2 class="font-semibold text-gray-700">Edit Journal — {{ $journal->entry_number }}</h2>
+            <h2 class="font-semibold text-gray-700">Edit Journal - {{ $journal->entry_number }}</h2>
             <span class="text-xs bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full">DRAFT</span>
         </div>
         <div class="grid grid-cols-3 gap-4">
@@ -105,12 +105,12 @@ const existingLines = [
 
 function buildAccountSelect(index, selectedId = null) {
     let html = `<select name="accounts[${index}]" class="w-full border border-gray-200 rounded px-2 py-1 text-xs" onchange="updateTotals()">`;
-    html += `<option value="">— Account —</option>`;
+    html += `<option value="">- Account -</option>`;
     for (const [type, accts] of Object.entries(accountGroups)) {
         html += `<optgroup label="${typeLabels[type] || type}">`;
         accts.forEach(a => {
             const sel = selectedId == a.id ? 'selected' : '';
-            html += `<option value="${a.id}" ${sel}>${a.code} — ${a.name}</option>`;
+            html += `<option value="${a.id}" ${sel}>${a.code} - ${a.name}</option>`;
         });
         html += `</optgroup>`;
     }

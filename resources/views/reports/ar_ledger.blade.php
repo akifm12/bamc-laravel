@@ -126,14 +126,14 @@
                 <td class="px-4 py-2 font-mono text-xs text-gray-500">{{ $line->entry_number }}</td>
                 <td class="px-4 py-2 text-gray-700">{{ $line->description }}
                     @if($line->line_desc && $line->line_desc != $line->description)
-                        <span class="text-gray-400 text-xs"> — {{ $line->line_desc }}</span>
+                        <span class="text-gray-400 text-xs"> - {{ $line->line_desc }}</span>
                     @endif
                 </td>
                 <td class="px-4 py-2 text-right text-gray-800">
-                    {{ $line->debit_amount > 0 ? number_format($line->debit_amount, 2) : '—' }}
+                    {{ $line->debit_amount > 0 ? number_format($line->debit_amount, 2) : '-' }}
                 </td>
                 <td class="px-4 py-2 text-right text-gray-800">
-                    {{ $line->credit_amount > 0 ? number_format($line->credit_amount, 2) : '—' }}
+                    {{ $line->credit_amount > 0 ? number_format($line->credit_amount, 2) : '-' }}
                 </td>
                 <td class="px-4 py-2 text-right font-medium {{ $line->running_balance >= 0 ? 'text-gray-800' : 'text-red-600' }}">
                     {{ number_format($line->running_balance, 2) }}

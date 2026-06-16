@@ -220,7 +220,7 @@ class BillController extends Controller
             return redirect("/bills/{$id}")->with('error', 'No accounting period found for this bill date. Please create a fiscal year and periods first.');
         }
 
-        // Resolve AP account — vendor specific or company default
+        // Resolve AP account - vendor specific or company default
         $apAccountId = $bill->ap_account_id;
         if (!$apAccountId) {
             $apAccountId = DB::table('accounts')
@@ -246,7 +246,7 @@ class BillController extends Controller
                     'entry_date'    => $bill->bill_date,
                     'journal_type'  => 'GENERAL',
                     'status'        => 'POSTED',
-                    'description'   => "Bill {$bill->bill_number} — {$bill->vendor_name}",
+                    'description'   => "Bill {$bill->bill_number} - {$bill->vendor_name}",
                     'reference'     => $bill->bill_number,
                     'total_debit'   => $bill->total_amount,
                     'total_credit'  => $bill->total_amount,
@@ -312,7 +312,7 @@ class BillController extends Controller
                     'company_id'       => $companyId,
                     'account_id'       => $apAccountId,
                     'line_number'      => $lineNum++,
-                    'description'      => "AP — {$bill->vendor_name}",
+                    'description'      => "AP - {$bill->vendor_name}",
                     'debit_amount'     => 0,
                     'credit_amount'    => $bill->total_amount,
                     'currency_code'    => 'AED',
@@ -422,7 +422,7 @@ class BillController extends Controller
                     'entry_date'    => $request->payment_date,
                     'journal_type'  => 'BANK_PAYMENT',
                     'status'        => 'POSTED',
-                    'description'   => "Payment to {$bill->vendor_name} — {$bill->bill_number}",
+                    'description'   => "Payment to {$bill->vendor_name} - {$bill->bill_number}",
                     'reference'     => $bill->bill_number,
                     'total_debit'   => $amount,
                     'total_credit'  => $amount,
@@ -442,7 +442,7 @@ class BillController extends Controller
                     'company_id'       => $companyId,
                     'account_id'       => $apAccountId,
                     'line_number'      => 1,
-                    'description'      => "AP cleared — {$bill->vendor_name}",
+                    'description'      => "AP cleared - {$bill->vendor_name}",
                     'debit_amount'     => $amount,
                     'credit_amount'    => 0,
                     'currency_code'    => 'AED',

@@ -24,7 +24,7 @@ class ReportController extends Controller
         $dateFrom = $request->get('date_from', date('Y-01-01'));
         $dateTo   = $request->get('date_to',   date('Y-m-d'));
 
-        // Balance sheet accounts — cumulative from beginning, including closing entries
+        // Balance sheet accounts - cumulative from beginning, including closing entries
         // Retained Earnings excluded (it's a closing entry construct, not a live TB account)
         $bsRows = DB::select("
             SELECT
@@ -53,7 +53,7 @@ class ReportController extends Controller
                 END, a.code
         ", [$companyId, $dateTo, $companyId]);
 
-        // P&L accounts — only within date range, excluding closing entries
+        // P&L accounts - only within date range, excluding closing entries
         $plRows = DB::select("
             SELECT
                 a.code, a.name, a.account_type,
@@ -152,7 +152,7 @@ class ReportController extends Controller
         $dateTo    = $request->get('date_to',   date('Y-m-d'));
         $format    = $request->get('format', 'csv');
 
-        // Balance sheet accounts — cumulative, excluding Retained Earnings
+        // Balance sheet accounts - cumulative, excluding Retained Earnings
         $bsRows = DB::select("
             SELECT
                 a.code, a.name, a.account_type,
@@ -180,7 +180,7 @@ class ReportController extends Controller
                 END, a.code
         ", [$companyId, $dateTo, $companyId]);
 
-        // P&L accounts — date range only, excluding closing entries
+        // P&L accounts - date range only, excluding closing entries
         $plRows = DB::select("
             SELECT
                 a.code, a.name, a.account_type,
@@ -768,12 +768,12 @@ class ReportController extends Controller
 
         $lines = collect($lines);
 
-        // Output VAT (LIABILITY) — credits = collected, debits = paid to govt / offset
+        // Output VAT (LIABILITY) - credits = collected, debits = paid to govt / offset
         $outputLines   = $lines->where('account_type', 'LIABILITY');
         $outputVAT     = $outputLines->sum('credit_amount'); // collected from customers
         $vatPaidToGovt = $outputLines->sum('debit_amount');  // settled with FTA
 
-        // Input VAT (ASSET) — debits = paid on purchases, credits = offset/recovered
+        // Input VAT (ASSET) - debits = paid on purchases, credits = offset/recovered
         $inputLines      = $lines->where('account_type', 'ASSET');
         $inputVAT        = $inputLines->sum('debit_amount');   // paid on purchases
         $inputRecovered  = $inputLines->sum('credit_amount');  // offset against output

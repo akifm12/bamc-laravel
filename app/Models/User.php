@@ -30,7 +30,7 @@ class User extends Authenticatable
         'last_login'     => 'datetime',
     ];
 
-    // Laravel auth uses 'password' — map it to our column
+    // Laravel auth uses 'password' - map it to our column
     public function getAuthPassword()
     {
         $hash = $this->hashed_password;

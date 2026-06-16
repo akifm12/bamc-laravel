@@ -60,14 +60,14 @@ $typeLabels = [
 <td class="px-4 py-2 font-medium text-gray-800"
     style="padding-left: {{ 16 + ($account->depth * 24) }}px">
     @if($account->depth > 0)
-        <span class="text-gray-300 mr-1">{{ str_repeat('—', $account->depth) }}</span>
+        <span class="text-gray-300 mr-1">{{ str_repeat('-', $account->depth) }}</span>
     @endif
     {{ $account->name }}
     @if($account->name_arabic)
         <span class="text-xs text-gray-400 ml-2" dir="rtl">{{ $account->name_arabic }}</span>
     @endif
 </td>
-                        <td class="px-4 py-2 text-gray-500">{{ $account->normal_balance ?? '—' }}</td>
+                        <td class="px-4 py-2 text-gray-500">{{ $account->normal_balance ?? '-' }}</td>
                         <td class="px-4 py-2">
                             @if($account->is_active)
                                 <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Active</span>

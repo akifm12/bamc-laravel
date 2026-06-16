@@ -40,7 +40,7 @@
                     @if($row->account_type === 'REVENUE' || $row->account_type === 'EXPENSE')
                     <tr class="border-b border-gray-50 hover:bg-gray-50">
                         <td class="px-4 py-2 text-gray-500 pl-8 text-xs">
-                            {{ $row->code }} — {{ $row->name }}
+                            {{ $row->code }} - {{ $row->name }}
                         </td>
                         <td class="px-4 py-2 text-right text-xs text-gray-600">
                             @php $bal = $row->account_type === 'REVENUE' ? $row->cr - $row->dr : $row->dr - $row->cr; @endphp
@@ -72,7 +72,7 @@
                 @php $change = $row->dr - $row->cr; @endphp
                 @if(abs($change) > 0.01)
                 <tr class="border-b border-gray-50 hover:bg-gray-50">
-                    <td class="px-4 py-2 text-gray-600">{{ $row->code }} — {{ $row->name }}</td>
+                    <td class="px-4 py-2 text-gray-600">{{ $row->code }} - {{ $row->name }}</td>
                     <td class="px-4 py-2 text-right {{ $change > 0 ? 'text-red-600' : 'text-green-700' }}">
                         {{ $change > 0 ? '('.number_format($change,2).')' : number_format(abs($change), 2) }}
                     </td>
@@ -102,7 +102,7 @@
                 @php $change = $row->cr - $row->dr; @endphp
                 @if(abs($change) > 0.01)
                 <tr class="border-b border-gray-50 hover:bg-gray-50">
-                    <td class="px-4 py-2 text-gray-600">{{ $row->code }} — {{ $row->name }}</td>
+                    <td class="px-4 py-2 text-gray-600">{{ $row->code }} - {{ $row->name }}</td>
                     <td class="px-4 py-2 text-right {{ $change >= 0 ? 'text-green-700' : 'text-red-600' }}">
                         {{ $change < 0 ? '('.number_format(abs($change),2).')' : number_format($change, 2) }}
                     </td>

@@ -19,7 +19,7 @@
 </head>
 <body>
     <h1>{{ $companyName }}</h1>
-    <h2>Profit & Loss Statement — {{ $dateFrom }} to {{ $dateTo }}</h2>
+    <h2>Profit & Loss Statement - {{ $dateFrom }} to {{ $dateTo }}</h2>
 
     <table>
         <thead>

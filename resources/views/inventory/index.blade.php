@@ -52,7 +52,7 @@
             <tr class="border-b border-gray-50 hover:bg-gray-50 {{ $isLow ? 'bg-red-50' : '' }}">
                 <td class="px-4 py-2 font-mono text-xs text-gray-500">{{ $item->code }}</td>
                 <td class="px-4 py-2 font-medium text-gray-800">{{ $item->name }}</td>
-                <td class="px-4 py-2 text-gray-500">{{ $item->category_name ?? '—' }}</td>
+                <td class="px-4 py-2 text-gray-500">{{ $item->category_name ?? '-' }}</td>
                 <td class="px-4 py-2 text-gray-500 capitalize">{{ $item->item_type }}</td>
                 <td class="px-4 py-2 text-right">{{ number_format($item->cost_price, 2) }}</td>
                 <td class="px-4 py-2 text-right">{{ number_format($item->standard_price, 2) }}</td>

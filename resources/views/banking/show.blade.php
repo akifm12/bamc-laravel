@@ -12,7 +12,7 @@
             <div>
                 <h2 class="text-xl font-bold text-gray-800">{{ $account->account_name }}</h2>
                 <p class="text-gray-500 text-sm mt-1">{{ $account->bank_name }}
-                    @if($account->account_number) — {{ $account->account_number }} @endif
+                    @if($account->account_number) - {{ $account->account_number }} @endif
                 </p>
                 @if($account->iban)
                     <p class="text-xs text-gray-400 mt-1">IBAN: {{ $account->iban }}</p>
@@ -84,10 +84,10 @@
                             <td class="px-4 py-2 font-mono text-xs text-gray-500">{{ $txn->entry_number }}</td>
                             <td class="px-4 py-2 text-gray-800">{{ $txn->description }}</td>
                             <td class="px-4 py-2 text-right text-green-700">
-                                {{ $txn->debit_amount > 0 ? number_format($txn->debit_amount, 2) : '—' }}
+                                {{ $txn->debit_amount > 0 ? number_format($txn->debit_amount, 2) : '-' }}
                             </td>
                             <td class="px-4 py-2 text-right text-red-600">
-                                {{ $txn->credit_amount > 0 ? number_format($txn->credit_amount, 2) : '—' }}
+                                {{ $txn->credit_amount > 0 ? number_format($txn->credit_amount, 2) : '-' }}
                             </td>
                             <td class="px-4 py-2 text-right font-medium {{ $txn->running_balance >= 0 ? 'text-gray-800' : 'text-red-600' }}">
                                 {{ number_format($txn->running_balance, 2) }}

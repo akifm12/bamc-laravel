@@ -97,7 +97,7 @@
             <div>
                 <label class="text-xs text-gray-500 block mb-1">Emirate</label>
                 <select name="emirate" class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
-                    <option value="">— Select —</option>
+                    <option value="">- Select -</option>
                     @foreach($emirates as $e)
                         <option value="{{ $e }}">{{ $e }}</option>
                     @endforeach

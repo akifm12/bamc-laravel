@@ -20,7 +20,7 @@
 </head>
 <body>
     <h1>{{ $companyName }}</h1>
-    <h2>Trial Balance — {{ $dateFrom }} to {{ $dateTo }}</h2>
+    <h2>Trial Balance - {{ $dateFrom }} to {{ $dateTo }}</h2>
 
     @php
     $typeLabels = [
@@ -50,8 +50,8 @@
                 <td class="text-mono">{{ $row->code }}</td>
                 <td>{{ $row->name }}</td>
                 <td>{{ $type }}</td>
-                <td class="text-right">{{ $row->total_debit > 0 ? number_format($row->total_debit, 2) : '—' }}</td>
-                <td class="text-right">{{ $row->total_credit > 0 ? number_format($row->total_credit, 2) : '—' }}</td>
+                <td class="text-right">{{ $row->total_debit > 0 ? number_format($row->total_debit, 2) : '-' }}</td>
+                <td class="text-right">{{ $row->total_credit > 0 ? number_format($row->total_credit, 2) : '-' }}</td>
                 <td class="text-right">{{ number_format($row->total_debit - $row->total_credit, 2) }}</td>
             </tr>
             @endforeach

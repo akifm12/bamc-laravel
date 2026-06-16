@@ -11,7 +11,7 @@
         <div class="flex items-start justify-between">
             <div>
                 <h2 class="text-xl font-bold text-gray-800">{{ $employee->full_name }}</h2>
-                <p class="text-gray-500 text-sm mt-1">{{ $employee->employee_id }} — {{ $employee->designation ?? 'No designation' }}</p>
+                <p class="text-gray-500 text-sm mt-1">{{ $employee->employee_id }} - {{ $employee->designation ?? 'No designation' }}</p>
             </div>
             @php
                 $statusColor = match($employee->status) {

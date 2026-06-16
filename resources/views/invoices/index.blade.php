@@ -78,7 +78,7 @@
                 <td class="px-4 py-2 font-mono text-xs text-gray-600">{{ $inv->invoice_number }}</td>
                 <td class="px-4 py-2 font-medium text-gray-800">{{ $inv->customer_name }}</td>
                 <td class="px-4 py-2 text-gray-600">{{ $inv->invoice_date }}</td>
-                <td class="px-4 py-2 text-gray-600">{{ $inv->due_date ?? '—' }}</td>
+                <td class="px-4 py-2 text-gray-600">{{ $inv->due_date ?? '-' }}</td>
                 <td class="px-4 py-2 text-right text-gray-800">{{ number_format($inv->total_amount, 2) }}</td>
                 <td class="px-4 py-2 text-right {{ $inv->amount_due > 0 ? 'text-red-600' : 'text-green-600' }}">
                     {{ number_format($inv->amount_due, 2) }}

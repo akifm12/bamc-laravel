@@ -114,7 +114,7 @@
                 <tr class="border-b border-gray-50 hover:bg-gray-50">
                     <td class="px-4 py-2 font-mono text-xs">{{ $inv->invoice_number }}</td>
                     <td class="px-4 py-2">{{ $inv->invoice_date }}</td>
-                    <td class="px-4 py-2">{{ $inv->due_date ?? '—' }}</td>
+                    <td class="px-4 py-2">{{ $inv->due_date ?? '-' }}</td>
                     <td class="px-4 py-2 text-right">{{ number_format($inv->total_amount, 2) }}</td>
                     <td class="px-4 py-2 text-right {{ $inv->amount_due > 0 ? 'text-red-600' : 'text-green-600' }}">
                         {{ number_format($inv->amount_due, 2) }}

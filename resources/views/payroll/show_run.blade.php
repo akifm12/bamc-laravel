@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Payroll Run — ' . $run->run_number)
+@section('title', 'Payroll Run - ' . $run->run_number)
 
 @section('content')
 
@@ -11,7 +11,7 @@
         <div class="flex items-start justify-between">
             <div>
                 <h2 class="text-xl font-bold text-gray-800">{{ $run->run_number }}</h2>
-                <p class="text-gray-500 text-sm mt-1">Period: {{ $run->pay_period_start }} — {{ $run->pay_period_end }}</p>
+                <p class="text-gray-500 text-sm mt-1">Period: {{ $run->pay_period_start }} - {{ $run->pay_period_end }}</p>
                 <p class="text-gray-500 text-sm">Pay Date: {{ $run->pay_date }}</p>
             </div>
             <div class="text-right">
@@ -71,11 +71,11 @@
                 <tr class="border-b border-gray-50 hover:bg-gray-50">
                     <td class="px-4 py-2">
                         <p class="font-medium text-gray-800">{{ $line->full_name }}</p>
-                        <p class="text-xs text-gray-400">{{ $line->emp_code }} — {{ $line->designation ?? '' }}</p>
+                        <p class="text-xs text-gray-400">{{ $line->emp_code }} - {{ $line->designation ?? '' }}</p>
                     </td>
                     <td class="px-4 py-2">
-                        <p class="text-xs text-gray-600">{{ $line->bank_name ?? '—' }}</p>
-                        <p class="text-xs text-gray-400">{{ $line->iban ?? '—' }}</p>
+                        <p class="text-xs text-gray-600">{{ $line->bank_name ?? '-' }}</p>
+                        <p class="text-xs text-gray-400">{{ $line->iban ?? '-' }}</p>
                     </td>
                     <td class="px-4 py-2 text-right">{{ number_format($line->basic_salary, 2) }}</td>
                     <td class="px-4 py-2 text-right">{{ number_format($line->housing_allowance, 2) }}</td>

@@ -51,7 +51,7 @@ public function store(Request $request): RedirectResponse
         "New user registration pending approval:\n\nName: {$user->full_name}\nUsername: {$user->username}\nEmail: {$user->email}\n\nLog in as admin to approve or reject.",
         function ($message) {
             $message->to('akif@bluearrow.ae')
-                    ->subject('Blue Arrow Books — New User Registration Pending Approval');
+                    ->subject('Blue Arrow Books - New User Registration Pending Approval');
         }
     );
 

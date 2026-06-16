@@ -11,7 +11,7 @@
         <div class="flex items-start justify-between">
             <div>
                 <h2 class="text-xl font-bold text-gray-800">{{ $item->name }}</h2>
-                <p class="text-gray-500 text-sm mt-1">{{ $item->code }} — {{ $item->category_name ?? 'No category' }}</p>
+                <p class="text-gray-500 text-sm mt-1">{{ $item->code }} - {{ $item->category_name ?? 'No category' }}</p>
                 @if($item->description)
                     <p class="text-xs text-gray-400 mt-1">{{ $item->description }}</p>
                 @endif
@@ -101,7 +101,7 @@
                             {{ str_replace('_', ' ', strtoupper($mov->movement_type)) }}
                         </span>
                     </td>
-                    <td class="px-4 py-2 text-gray-500 font-mono text-xs">{{ $mov->reference ?? '—' }}</td>
+                    <td class="px-4 py-2 text-gray-500 font-mono text-xs">{{ $mov->reference ?? '-' }}</td>
                     <td class="px-4 py-2 text-right {{ $mov->quantity > 0 ? 'text-green-700' : 'text-red-600' }} font-semibold">
                         {{ $mov->quantity > 0 ? '+' : '' }}{{ number_format($mov->quantity, 2) }}
                     </td>

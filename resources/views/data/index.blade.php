@@ -18,7 +18,7 @@
             <div class="flex items-center justify-between py-3 border-b border-gray-100">
                 <div>
                     <p class="text-sm font-medium text-gray-700">Journal Entries</p>
-                    <p class="text-xs text-gray-400">{{ number_format($journalCount) }} entries — all lines with account codes</p>
+                    <p class="text-xs text-gray-400">{{ number_format($journalCount) }} entries - all lines with account codes</p>
                 </div>
                 <div class="flex gap-2">
                     <a href="/data/export/journals?format=csv"
@@ -74,7 +74,7 @@
             <div class="flex items-center justify-between py-3">
                 <div>
                     <p class="text-sm font-medium text-gray-700">Full Database Dump</p>
-                    <p class="text-xs text-gray-400">SQL export of all company data — for backup or migration</p>
+                    <p class="text-xs text-gray-400">SQL export of all company data - for backup or migration</p>
                 </div>
                 <div class="flex gap-2">
                     <a href="/data/export/dbdump"
@@ -105,7 +105,7 @@
             <div class="flex items-center justify-between py-2">
                 <div>
                     <p class="text-sm font-medium text-gray-700">Journal Entries Template</p>
-                    <p class="text-xs text-gray-400">CSV template — one row per journal line, grouped by entry number</p>
+                    <p class="text-xs text-gray-400">CSV template - one row per journal line, grouped by entry number</p>
                 </div>
                 <a href="/data/templates/journals"
                     class="text-xs border border-gray-300 text-gray-600 px-3 py-1.5 rounded hover:bg-gray-50">

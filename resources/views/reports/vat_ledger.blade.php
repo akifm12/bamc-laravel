@@ -54,11 +54,11 @@
     </div>
 </div>
 
-<!-- Output VAT — collected from customers -->
+<!-- Output VAT - collected from customers -->
 <div class="mb-5 bg-white rounded-lg border border-gray-200 overflow-hidden">
     <div class="px-4 py-2.5 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
         <div class="flex items-center gap-2">
-            <span class="font-semibold text-blue-800 text-sm">Output VAT — Collected from Customers</span>
+            <span class="font-semibold text-blue-800 text-sm">Output VAT - Collected from Customers</span>
             <span class="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">{{ $outputLines->count() }} entries</span>
         </div>
         <span class="text-sm font-semibold text-blue-800">AED {{ number_format($outputVAT, 2) }} collected &nbsp;|&nbsp; AED {{ number_format($vatPaidToGovt, 2) }} paid to govt</span>
@@ -82,13 +82,13 @@
             <tr class="border-b border-gray-50 hover:bg-gray-50">
                 <td class="px-4 py-2 text-gray-500 text-xs">{{ $row->entry_date }}</td>
                 <td class="px-4 py-2 font-mono text-xs text-gray-500">{{ $row->entry_number }}</td>
-                <td class="px-4 py-2 text-gray-700">{{ $row->description ?: '—' }}</td>
+                <td class="px-4 py-2 text-gray-700">{{ $row->description ?: '-' }}</td>
                 <td class="px-4 py-2 text-xs text-gray-500">{{ $row->account_name }}</td>
                 <td class="px-4 py-2 text-right text-blue-700 font-medium">
-                    {{ $row->credit_amount > 0 ? number_format($row->credit_amount, 2) : '—' }}
+                    {{ $row->credit_amount > 0 ? number_format($row->credit_amount, 2) : '-' }}
                 </td>
                 <td class="px-4 py-2 text-right text-red-600 font-medium">
-                    {{ $row->debit_amount > 0 ? number_format($row->debit_amount, 2) : '—' }}
+                    {{ $row->debit_amount > 0 ? number_format($row->debit_amount, 2) : '-' }}
                 </td>
             </tr>
             @endforeach
@@ -104,11 +104,11 @@
     @endif
 </div>
 
-<!-- Input VAT — paid on purchases -->
+<!-- Input VAT - paid on purchases -->
 <div class="mb-5 bg-white rounded-lg border border-gray-200 overflow-hidden">
     <div class="px-4 py-2.5 bg-orange-50 border-b border-orange-100 flex items-center justify-between">
         <div class="flex items-center gap-2">
-            <span class="font-semibold text-orange-800 text-sm">Input VAT — Paid on Purchases</span>
+            <span class="font-semibold text-orange-800 text-sm">Input VAT - Paid on Purchases</span>
             <span class="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">{{ $inputLines->count() }} entries</span>
         </div>
         <span class="text-sm font-semibold text-orange-800">AED {{ number_format($inputVAT, 2) }} recoverable</span>
@@ -132,13 +132,13 @@
             <tr class="border-b border-gray-50 hover:bg-gray-50">
                 <td class="px-4 py-2 text-gray-500 text-xs">{{ $row->entry_date }}</td>
                 <td class="px-4 py-2 font-mono text-xs text-gray-500">{{ $row->entry_number }}</td>
-                <td class="px-4 py-2 text-gray-700">{{ $row->description ?: '—' }}</td>
+                <td class="px-4 py-2 text-gray-700">{{ $row->description ?: '-' }}</td>
                 <td class="px-4 py-2 text-xs text-gray-500">{{ $row->account_name }}</td>
                 <td class="px-4 py-2 text-right text-orange-700 font-medium">
-                    {{ $row->debit_amount > 0 ? number_format($row->debit_amount, 2) : '—' }}
+                    {{ $row->debit_amount > 0 ? number_format($row->debit_amount, 2) : '-' }}
                 </td>
                 <td class="px-4 py-2 text-right text-green-600 font-medium">
-                    {{ $row->credit_amount > 0 ? number_format($row->credit_amount, 2) : '—' }}
+                    {{ $row->credit_amount > 0 ? number_format($row->credit_amount, 2) : '-' }}
                 </td>
             </tr>
             @endforeach
@@ -187,7 +187,7 @@
     @elseif($balance > 0)
     <p class="text-xs text-red-500 mt-3">⚠️ AED {{ number_format($balance, 2) }} remains payable to the FTA.</p>
     @else
-    <p class="text-xs text-blue-500 mt-3">ℹ️ AED {{ number_format(abs($balance), 2) }} credit — may be refundable or carried forward.</p>
+    <p class="text-xs text-blue-500 mt-3">ℹ️ AED {{ number_format(abs($balance), 2) }} credit - may be refundable or carried forward.</p>
     @endif
 </div>
 

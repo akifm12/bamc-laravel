@@ -70,8 +70,8 @@ $typeLabels = [
             <tr class="border-b border-gray-50 hover:bg-gray-50">
                 <td class="px-4 py-2 font-mono text-xs text-gray-500">{{ $row->code }}</td>
                 <td class="px-4 py-2 text-gray-800">{{ $row->name }}</td>
-                <td class="px-4 py-2 text-right text-gray-700">{{ $row->total_debit > 0 ? number_format($row->total_debit, 2) : '—' }}</td>
-                <td class="px-4 py-2 text-right text-gray-700">{{ $row->total_credit > 0 ? number_format($row->total_credit, 2) : '—' }}</td>
+                <td class="px-4 py-2 text-right text-gray-700">{{ $row->total_debit > 0 ? number_format($row->total_debit, 2) : '-' }}</td>
+                <td class="px-4 py-2 text-right text-gray-700">{{ $row->total_credit > 0 ? number_format($row->total_credit, 2) : '-' }}</td>
                 <td class="px-4 py-2 text-right font-medium {{ $balance < 0 ? 'text-red-600' : 'text-gray-800' }}">
                     {{ $balance < 0 ? '(' . number_format(abs($balance), 2) . ')' : number_format($balance, 2) }}
                 </td>

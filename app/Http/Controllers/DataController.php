@@ -266,7 +266,7 @@ class DataController extends Controller
 
             $validTypes = ['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE'];
             if (!in_array(strtoupper($data['account_type']), $validTypes)) {
-                $errors[] = "Row skipped — invalid account_type: {$data['account_type']}";
+                $errors[] = "Row skipped - invalid account_type: {$data['account_type']}";
                 $skipped++;
                 continue;
             }

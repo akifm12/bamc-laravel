@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'VAT Return — ' . $return->return_number)
+@section('title', 'VAT Return - ' . $return->return_number)
 
 @section('content')
 
@@ -11,7 +11,7 @@
         <div class="flex items-start justify-between">
             <div>
                 <h2 class="text-xl font-bold text-gray-800">{{ $return->return_number }}</h2>
-                <p class="text-gray-500 text-sm mt-1">Period: {{ $return->period_from }} — {{ $return->period_to }}</p>
+                <p class="text-gray-500 text-sm mt-1">Period: {{ $return->period_from }} - {{ $return->period_to }}</p>
                 @if($return->due_date)
                     <p class="text-xs text-gray-400 mt-1">Due: {{ $return->due_date }}</p>
                 @endif
@@ -62,7 +62,7 @@
     <!-- Full VAT 201 Form -->
     <div class="bg-white rounded-lg border border-gray-200 overflow-hidden mb-4">
         <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
-            <span class="font-semibold text-gray-700 text-sm">UAE VAT 201 — Full Return</span>
+            <span class="font-semibold text-gray-700 text-sm">UAE VAT 201 - Full Return</span>
         </div>
         <table class="w-full text-sm">
             <thead>
@@ -75,7 +75,7 @@
             </thead>
             <tbody>
                 <tr class="bg-blue-50 border-b border-gray-100">
-                    <td colspan="4" class="px-4 py-2 text-xs font-semibold text-blue-700 uppercase">Part A — VAT on Sales</td>
+                    <td colspan="4" class="px-4 py-2 text-xs font-semibold text-blue-700 uppercase">Part A - VAT on Sales</td>
                 </tr>
                 <tr class="border-b border-gray-50 hover:bg-gray-50">
                     <td class="px-4 py-2 font-mono text-xs text-gray-500">1</td>
@@ -110,12 +110,12 @@
                 <tr class="bg-gray-50 border-b border-gray-200 font-semibold">
                     <td class="px-4 py-2 font-mono text-xs">6</td>
                     <td class="px-4 py-2">Total Output Tax</td>
-                    <td class="px-4 py-2 text-right">—</td>
+                    <td class="px-4 py-2 text-right">-</td>
                     <td class="px-4 py-2 text-right text-green-700">{{ number_format($return->box6_total_output_tax, 2) }}</td>
                 </tr>
 
                 <tr class="bg-orange-50 border-b border-gray-100">
-                    <td colspan="4" class="px-4 py-2 text-xs font-semibold text-orange-700 uppercase">Part B — VAT on Purchases</td>
+                    <td colspan="4" class="px-4 py-2 text-xs font-semibold text-orange-700 uppercase">Part B - VAT on Purchases</td>
                 </tr>
                 <tr class="border-b border-gray-50 hover:bg-gray-50">
                     <td class="px-4 py-2 font-mono text-xs text-gray-500">7</td>
@@ -132,35 +132,35 @@
                 <tr class="bg-gray-50 border-b border-gray-200 font-semibold">
                     <td class="px-4 py-2 font-mono text-xs">9</td>
                     <td class="px-4 py-2">Total Input Tax</td>
-                    <td class="px-4 py-2 text-right">—</td>
+                    <td class="px-4 py-2 text-right">-</td>
                     <td class="px-4 py-2 text-right text-blue-700">{{ number_format($return->box9_total_input_tax, 2) }}</td>
                 </tr>
 
                 <tr class="bg-gray-50 border-b border-gray-100">
-                    <td colspan="4" class="px-4 py-2 text-xs font-semibold text-gray-600 uppercase">Part C — Net VAT</td>
+                    <td colspan="4" class="px-4 py-2 text-xs font-semibold text-gray-600 uppercase">Part C - Net VAT</td>
                 </tr>
                 <tr class="border-b border-gray-50 hover:bg-gray-50">
                     <td class="px-4 py-2 font-mono text-xs text-gray-500">10</td>
                     <td class="px-4 py-2">Adjustment</td>
-                    <td class="px-4 py-2 text-right">—</td>
+                    <td class="px-4 py-2 text-right">-</td>
                     <td class="px-4 py-2 text-right">{{ number_format($return->box10_adjustment, 2) }}</td>
                 </tr>
                 <tr class="border-b border-gray-50 hover:bg-gray-50">
                     <td class="px-4 py-2 font-mono text-xs text-gray-500">11</td>
                     <td class="px-4 py-2">Net VAT Due</td>
-                    <td class="px-4 py-2 text-right">—</td>
+                    <td class="px-4 py-2 text-right">-</td>
                     <td class="px-4 py-2 text-right font-semibold">{{ number_format($return->box11_net_vat_due, 2) }}</td>
                 </tr>
                 <tr class="border-b border-gray-50 hover:bg-gray-50">
                     <td class="px-4 py-2 font-mono text-xs text-gray-500">12</td>
                     <td class="px-4 py-2">VAT on Imports (paid to Customs)</td>
-                    <td class="px-4 py-2 text-right">—</td>
+                    <td class="px-4 py-2 text-right">-</td>
                     <td class="px-4 py-2 text-right">{{ number_format($return->box12_vat_on_imports, 2) }}</td>
                 </tr>
                 <tr class="font-bold border-t-2 border-gray-300 {{ $return->box13_net_payable > 0 ? 'bg-red-50' : 'bg-green-50' }}">
                     <td class="px-4 py-3 font-mono text-sm">13</td>
                     <td class="px-4 py-3">Net VAT Payable / (Refundable)</td>
-                    <td class="px-4 py-3 text-right">—</td>
+                    <td class="px-4 py-3 text-right">-</td>
                     <td class="px-4 py-3 text-right text-lg {{ $return->box13_net_payable > 0 ? 'text-red-700' : 'text-green-700' }}">
                         AED {{ number_format($return->box13_net_payable, 2) }}
                     </td>

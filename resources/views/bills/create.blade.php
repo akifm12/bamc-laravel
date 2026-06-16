@@ -22,7 +22,7 @@
                 <label class="text-xs text-gray-500 block mb-1">Vendor *</label>
                 <select name="vendor_id" required
                     class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
-                    <option value="">— Select Vendor —</option>
+                    <option value="">- Select Vendor -</option>
                     @foreach($vendors as $v)
                         <option value="{{ $v->id }}"
                             {{ (isset($selectedVendor) && $selectedVendor->id == $v->id) ? 'selected' : '' }}>
@@ -121,11 +121,11 @@ const typeLabels = {
 
 function buildAccountSelect(index) {
     let html = `<select name="accounts[${index}]" class="w-full border border-gray-200 rounded px-2 py-1 text-xs" onchange="updateTotals()">`;
-    html += `<option value="">— Account —</option>`;
+    html += `<option value="">- Account -</option>`;
     for (const [type, accounts] of Object.entries(accountGroups)) {
         html += `<optgroup label="${typeLabels[type] || type}">`;
         accounts.forEach(a => {
-            html += `<option value="${a.id}">${a.code} — ${a.name}</option>`;
+            html += `<option value="${a.id}">${a.code} - ${a.name}</option>`;
         });
         html += `</optgroup>`;
     }

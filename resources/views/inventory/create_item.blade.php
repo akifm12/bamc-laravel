@@ -31,7 +31,7 @@
             <div>
                 <label class="text-xs text-gray-500 block mb-1">Category</label>
                 <select name="category_id" class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
-                    <option value="">— Select —</option>
+                    <option value="">- Select -</option>
                     @foreach($categories as $cat)
                         <option value="{{ $cat->id }}">{{ $cat->name }}</option>
                     @endforeach
@@ -109,7 +109,7 @@
             <div>
                 <label class="text-xs text-gray-500 block mb-1">Tax Code</label>
                 <select name="tax_code_id" class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
-                    <option value="">— None —</option>
+                    <option value="">- None -</option>
                     @foreach($taxCodes as $tc)
                         <option value="{{ $tc->id }}">{{ $tc->name }}</option>
                     @endforeach
@@ -153,9 +153,9 @@
             <div>
                 <label class="text-xs text-gray-500 block mb-1">{{ $label }}</label>
                 <select name="{{ $field }}" class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
-                    <option value="">— Select —</option>
+                    <option value="">- Select -</option>
                     @foreach($accounts->get($type, collect()) as $a)
-                        <option value="{{ $a->id }}">{{ $a->code }} — {{ $a->name }}</option>
+                        <option value="{{ $a->id }}">{{ $a->code }} - {{ $a->name }}</option>
                     @endforeach
                 </select>
             </div>

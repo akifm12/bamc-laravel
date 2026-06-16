@@ -16,9 +16,9 @@
             <div>
                 <label class="text-xs text-gray-500 block mb-1">Item *</label>
                 <select name="item_id" required class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
-                    <option value="">— Select Item —</option>
+                    <option value="">- Select Item -</option>
                     @foreach($items as $item)
-                        <option value="{{ $item->id }}">{{ $item->code }} — {{ $item->name }}</option>
+                        <option value="{{ $item->id }}">{{ $item->code }} - {{ $item->name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -163,7 +163,7 @@
                         {{ str_replace('_', ' ', strtoupper($mov->movement_type)) }}
                     </span>
                 </td>
-                <td class="px-4 py-2 font-mono text-xs text-gray-500">{{ $mov->reference ?? '—' }}</td>
+                <td class="px-4 py-2 font-mono text-xs text-gray-500">{{ $mov->reference ?? '-' }}</td>
                 <td class="px-4 py-2 text-right font-semibold {{ $mov->quantity > 0 ? 'text-green-700' : 'text-red-600' }}">
                     {{ $mov->quantity > 0 ? '+' : '' }}{{ number_format($mov->quantity, 2) }}
                 </td>

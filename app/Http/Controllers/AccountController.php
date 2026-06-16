@@ -26,7 +26,7 @@ public function index()
         ->orderBy('code')
         ->get();
 
-    // Build hierarchy — parents first, children nested under them
+    // Build hierarchy - parents first, children nested under them
     $allById   = $accounts->keyBy('id');
     $organized = [];
 
@@ -188,12 +188,12 @@ public function index()
 
         $inUse = DB::table('journal_lines')->where('account_id', $id)->exists();
         if ($inUse) {
-            return redirect('/accounts')->with('error', 'Cannot delete — this account has journal entries posted against it.');
+            return redirect('/accounts')->with('error', 'Cannot delete - this account has journal entries posted against it.');
         }
 
         $hasChildren = DB::table('accounts')->where('parent_id', $id)->exists();
         if ($hasChildren) {
-            return redirect('/accounts')->with('error', 'Cannot delete — this account has sub-accounts. Delete or reassign them first.');
+            return redirect('/accounts')->with('error', 'Cannot delete - this account has sub-accounts. Delete or reassign them first.');
         }
 
         DB::table('accounts')->where('id', $id)->where('company_id', $companyId)->delete();

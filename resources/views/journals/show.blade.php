@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Journal Entry — ' . $journal->entry_number)
+@section('title', 'Journal Entry - ' . $journal->entry_number)
 
 @section('content')
 
@@ -52,12 +52,12 @@
                     <td class="px-4 py-2 text-gray-400 text-xs">{{ $line->line_number }}</td>
                     <td class="px-4 py-2 font-mono text-xs text-gray-500">{{ $line->code }}</td>
                     <td class="px-4 py-2 font-medium text-gray-800">{{ $line->name }}</td>
-                    <td class="px-4 py-2 text-gray-500">{{ $line->description ?? '—' }}</td>
+                    <td class="px-4 py-2 text-gray-500">{{ $line->description ?? '-' }}</td>
                     <td class="px-4 py-2 text-right text-gray-800">
-                        {{ $line->debit_amount > 0 ? number_format($line->debit_amount, 2) : '—' }}
+                        {{ $line->debit_amount > 0 ? number_format($line->debit_amount, 2) : '-' }}
                     </td>
                     <td class="px-4 py-2 text-right text-gray-800">
-                        {{ $line->credit_amount > 0 ? number_format($line->credit_amount, 2) : '—' }}
+                        {{ $line->credit_amount > 0 ? number_format($line->credit_amount, 2) : '-' }}
                     </td>
                 </tr>
                 @endforeach

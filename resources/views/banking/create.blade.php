@@ -54,9 +54,9 @@
             <div>
                 <label class="text-xs text-gray-500 block mb-1">GL Account *</label>
                 <select name="gl_account_id" required class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
-                    <option value="">— Select —</option>
+                    <option value="">- Select -</option>
                     @foreach($glAccounts as $a)
-                        <option value="{{ $a->id }}">{{ $a->code }} — {{ $a->name }}</option>
+                        <option value="{{ $a->id }}">{{ $a->code }} - {{ $a->name }}</option>
                     @endforeach
                 </select>
             </div>

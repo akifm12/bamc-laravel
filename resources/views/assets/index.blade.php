@@ -53,7 +53,7 @@
             <tr class="border-b border-gray-50 hover:bg-gray-50">
                 <td class="px-4 py-2 font-mono text-xs text-gray-500">{{ $asset->asset_number }}</td>
                 <td class="px-4 py-2 font-medium text-gray-800">{{ $asset->name }}</td>
-                <td class="px-4 py-2 text-gray-500">{{ $asset->category_name ?? '—' }}</td>
+                <td class="px-4 py-2 text-gray-500">{{ $asset->category_name ?? '-' }}</td>
                 <td class="px-4 py-2 text-gray-600">{{ $asset->purchase_date }}</td>
                 <td class="px-4 py-2 text-right">{{ number_format($asset->purchase_cost, 2) }}</td>
                 <td class="px-4 py-2 text-right text-red-500">{{ number_format($asset->accumulated_depreciation, 2) }}</td>

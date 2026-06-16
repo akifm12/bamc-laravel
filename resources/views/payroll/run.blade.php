@@ -37,23 +37,23 @@
     <!-- Journal Accounts -->
     <div class="bg-white rounded-lg border border-gray-200 p-5">
         <h3 class="font-semibold text-gray-700 text-sm mb-1">Journal Entry Accounts</h3>
-        <p class="text-xs text-gray-400 mb-4">Optional — if provided, a journal entry will be auto-created.</p>
+        <p class="text-xs text-gray-400 mb-4">Optional - if provided, a journal entry will be auto-created.</p>
         <div class="grid grid-cols-2 gap-4">
             <div>
                 <label class="text-xs text-gray-500 block mb-1">Salary Expense Account</label>
                 <select name="salary_expense_account" class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
-                    <option value="">— Select —</option>
+                    <option value="">- Select -</option>
                     @foreach($accounts->get('EXPENSE', collect()) as $a)
-                        <option value="{{ $a->id }}">{{ $a->code }} — {{ $a->name }}</option>
+                        <option value="{{ $a->id }}">{{ $a->code }} - {{ $a->name }}</option>
                     @endforeach
                 </select>
             </div>
             <div>
                 <label class="text-xs text-gray-500 block mb-1">Salary Payable Account</label>
                 <select name="salary_payable_account" class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
-                    <option value="">— Select —</option>
+                    <option value="">- Select -</option>
                     @foreach($accounts->get('LIABILITY', collect()) as $a)
-                        <option value="{{ $a->id }}">{{ $a->code }} — {{ $a->name }}</option>
+                        <option value="{{ $a->id }}">{{ $a->code }} - {{ $a->name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -85,7 +85,7 @@
                         <p class="font-medium text-gray-800">{{ $emp->full_name }}</p>
                         <p class="text-xs text-gray-400">{{ $emp->employee_id }}</p>
                     </td>
-                    <td class="px-4 py-2 text-gray-600">{{ $emp->designation ?? '—' }}</td>
+                    <td class="px-4 py-2 text-gray-600">{{ $emp->designation ?? '-' }}</td>
                     <td class="px-4 py-2 text-right">{{ number_format($emp->basic_salary, 2) }}</td>
                     <td class="px-4 py-2 text-right text-gray-500">
                         {{ number_format($emp->housing_allowance + $emp->transport_allowance + $emp->other_allowances, 2) }}

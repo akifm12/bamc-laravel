@@ -110,7 +110,7 @@ class InventoryController extends Controller
 
         if (!$item) abort(404);
 
-        // warehouse_stock has no company_id — filter by item_id only
+        // warehouse_stock has no company_id - filter by item_id only
         $stockByWarehouse = DB::table('warehouse_stock')
             ->leftJoin('warehouses', 'warehouses.id', '=', 'warehouse_stock.warehouse_id')
             ->where('warehouse_stock.item_id', $id)
@@ -175,7 +175,7 @@ class InventoryController extends Controller
         $unitCost   = floatval($request->unit_cost ?? $item->cost_price ?? 0);
 
         DB::transaction(function () use ($companyId, $request, $qty, $signedQty, $unitCost, $item) {
-            // Record stock movement — no created_by_id column
+            // Record stock movement - no created_by_id column
             DB::table('stock_movements')->insert([
                 'company_id'    => $companyId,
                 'item_id'       => $request->item_id,
@@ -191,7 +191,7 @@ class InventoryController extends Controller
                 'updated_at'    => now(),
             ]);
 
-            // Update warehouse_stock — no company_id, no quantity_on_hand, no created_at
+            // Update warehouse_stock - no company_id, no quantity_on_hand, no created_at
             $existing = DB::table('warehouse_stock')
                 ->where('item_id', $request->item_id)
                 ->where('warehouse_id', $request->warehouse_id ?: null)
