@@ -53,6 +53,15 @@
                             💰 Record Payment
                         </a>
                     @endif
+                    @if(in_array($status, ['approved', 'partial', 'paid']) && auth()->user()->is_super_admin)
+                        <form method="POST" action="/bills/{{ $bill->id }}/void">
+                            @csrf
+                            <button onclick="return confirm('Void this bill? This cannot be undone.')"
+                                class="text-xs bg-red-600 text-white px-3 py-1.5 rounded hover:bg-red-700">
+                                🔴 Void
+                            </button>
+                        </form>
+                    @endif
                 
                 </div>
             </div>
