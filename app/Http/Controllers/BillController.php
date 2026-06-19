@@ -465,7 +465,7 @@ class BillController extends Controller
                 ]);
 
                 $newPaid = $bill->amount_paid + $amount;
-                $newDue  = $bill->total_amount - $newPaid;
+                $newDue  = round($bill->total_amount - $newPaid, 2);
                 $status  = $newDue <= 0 ? 'PAID' : 'PARTIAL';
 
                 DB::table('bills')->where('id', $id)->update([

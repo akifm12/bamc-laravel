@@ -687,7 +687,7 @@ class InvoiceController extends Controller
                 ]);
 
                 $newPaid = $invoice->amount_paid + $amount;
-                $newDue  = $invoice->total_amount - $newPaid;
+                $newDue  = round($invoice->total_amount - $newPaid, 2);
                 $status  = $newDue <= 0 ? 'PAID' : 'PARTIAL';
 
                 DB::table('invoices')->where('id', $id)->update([
