@@ -43,7 +43,8 @@ class EInvoiceService
             ->join('customers', 'customers.id', '=', 'invoices.customer_id')
             ->where('invoices.id', $invoiceId)
             ->select('invoices.*', 'customers.name as customer_name', 'customers.email as customer_email',
-                     'customers.phone as customer_phone', 'customers.address as customer_address',
+                     'customers.phone as customer_phone',
+                     DB::raw("CONCAT_WS(', ', customers.address_line1, customers.address_line2, customers.city) as customer_address"),
                      'customers.trn as customer_trn')
             ->first();
 
