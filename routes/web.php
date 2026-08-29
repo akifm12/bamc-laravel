@@ -103,8 +103,8 @@ Route::middleware(['auth'])->group(function () {
 	Route::get('/reports/cash-flow', [ReportController::class, 'cashFlow'])->name('reports.cash_flow');
 
 	Route::get('/settings/company', [CompanySetupController::class, 'index'])->name('settings.company');
-	Route::post('/settings/company/{id}', [CompanySetupController::class, 'update'])->name('settings.company.update');
 	Route::post('/settings/company/test-einvoice', [CompanySetupController::class, 'testEInvoiceConnection'])->name('settings.company.test_einvoice');
+	Route::post('/settings/company/{id}', [CompanySetupController::class, 'update'])->name('settings.company.update');
 	Route::get('/settings/fiscal-years', [CompanySetupController::class, 'fiscalYears'])->name('settings.fiscal_years');
 	Route::post('/settings/fiscal-years', [CompanySetupController::class, 'storeFiscalYear'])->name('settings.fiscal_years.store');
 	Route::post('/settings/fiscal-years/{id}/close', [CompanySetupController::class, 'closeFiscalYear'])->name('settings.fiscal_years.close');
