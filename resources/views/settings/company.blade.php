@@ -235,12 +235,13 @@
                     class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
             </div>
             <div class="col-span-2">
-                <label class="text-xs text-gray-500 block mb-1">API Key
-                    <span class="text-gray-400">(leave blank to keep existing key)</span>
-                </label>
+                <label class="text-xs text-gray-500 block mb-1">API Key</label>
+                @if($company->einvoicing_api_key)
+                <p class="text-xs text-green-600 mb-1">✅ Key saved on file — paste a new key below only if you want to replace it.</p>
+                @endif
                 <div class="flex gap-2">
                     <input type="password" name="einvoicing_api_key" id="einvoicing_api_key"
-                        placeholder="{{ $company->einvoicing_api_key ? '••••••••••••••••' : 'Paste API key here' }}"
+                        placeholder="{{ $company->einvoicing_api_key ? 'Enter new key to replace existing' : 'Paste API key here' }}"
                         autocomplete="new-password"
                         class="flex-1 border border-gray-200 rounded px-3 py-1.5 text-sm font-mono">
                     <button type="button" onclick="testEInvoiceConnection()" id="btn-test-conn"
