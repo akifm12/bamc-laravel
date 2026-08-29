@@ -95,6 +95,15 @@ class CompanySetupController extends Controller
 
         $result = (new EInvoiceService())->testConnection($apiKey, $provider);
 
+        // Also return first 20 accounts so user can find the right account ID
+        if ($result['success']) {
+            $accts = \Illuminate\Support\Facades\Http::withHeaders([
+                'Authorization' => 'Api-Key ' . $apiKey,
+            ])->get('https://api.wafeq.com/v1/accounts/', ['limit' => 20]);
+
+            $result['accounts'] = $accts->successful() ? ($accts->json('results') ?? []) : [];
+        }
+
         return response()->json($result);
     }
 

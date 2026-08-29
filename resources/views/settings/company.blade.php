@@ -302,9 +302,23 @@ function testEInvoiceConnection() {
     })
     .then(r => r.json())
     .then(data => {
-        result.textContent = data.message;
-        result.className   = 'text-xs mt-1 ' + (data.success ? 'text-green-600' : 'text-red-600');
+        result.className = 'text-xs mt-1 ' + (data.success ? 'text-green-600' : 'text-red-600');
         result.classList.remove('hidden');
+
+        if (data.success && data.accounts && data.accounts.length) {
+            const revenue = data.accounts.filter(a =>
+                (a.account_type || a.type || '').toLowerCase().includes('revenue') ||
+                (a.account_type || a.type || '').toLowerCase().includes('income') ||
+                (a.name || '').toLowerCase().includes('sales') ||
+                (a.name || '').toLowerCase().includes('revenue')
+            );
+            const list = (revenue.length ? revenue : data.accounts).slice(0, 5);
+            result.innerHTML = '✅ Connected. Revenue accounts found:<br>' +
+                list.map(a => `<code style="background:#f3f4f6;padding:1px 4px;border-radius:3px">${a.id}</code> — ${a.name} (${a.account_type || a.type || '?'})`).join('<br>') +
+                '<br><span style="color:#6b7280">Paste one of these IDs into the Revenue Account Code field above.</span>';
+        } else {
+            result.textContent = data.message;
+        }
     })
     .catch(() => {
         result.textContent = 'Network error — check console.';
