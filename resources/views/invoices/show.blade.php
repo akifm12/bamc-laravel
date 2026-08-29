@@ -98,7 +98,7 @@
                         @endif
                     </span>
                     @if($eStatus === 'failed')
-                        <p class="text-xs text-red-500 max-w-xs text-right">{{ Str::limit($invoice->einvoice_error, 120) }}</p>
+                        <p class="text-xs text-red-500 max-w-xs text-right">{{ $invoice->einvoice_error }}</p>
                         <form method="POST" action="/invoices/{{ $invoice->id }}/retry-einvoice">
                             @csrf
                             <button class="text-xs bg-orange-600 text-white px-2 py-0.5 rounded hover:bg-orange-700">
