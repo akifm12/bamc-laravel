@@ -13,6 +13,8 @@ use Illuminate\Support\Str;
  */
 class EInvoiceService
 {
+    private ?string $lastContactError = null;
+
     public function submitInvoice(int $invoiceId, int $companyId): void
     {
         $company = DB::table('companies')->find($companyId);
@@ -62,7 +64,7 @@ class EInvoiceService
         // Ensure contact exists in Wafeq
         $contactId = $this->ensureWafeqContact($invoice, $apiKey);
         if (!$contactId) {
-            $this->markFailed($invoiceId, 'Failed to create/find contact in Wafeq.');
+            $this->markFailed($invoiceId, $this->lastContactError ?? 'Failed to create/find contact in Wafeq.');
             return;
         }
 
@@ -134,23 +136,26 @@ class EInvoiceService
         }
 
         // Create new contact
+        $payload = [
+            'name'        => $invoice->customer_name,
+            'external_id' => 'cust-' . $invoice->customer_id,
+        ];
+        if ($invoice->customer_email) $payload['email']      = $invoice->customer_email;
+        if ($invoice->customer_phone) $payload['phone']      = $invoice->customer_phone;
+        if ($invoice->customer_address) $payload['address']  = $invoice->customer_address;
+        if ($invoice->customer_trn)   $payload['tax_number'] = $invoice->customer_trn;
+
         $createRes = Http::withHeaders([
             'Authorization' => 'Api-Key ' . $apiKey,
             'Content-Type'  => 'application/json',
-        ])->post('https://api.wafeq.com/v1/contacts/', [
-            'name'        => $invoice->customer_name,
-            'email'       => $invoice->customer_email ?? '',
-            'phone'       => $invoice->customer_phone ?? '',
-            'address'     => $invoice->customer_address ?? '',
-            'tax_number'  => $invoice->customer_trn ?? '',
-            'external_id' => 'cust-' . $invoice->customer_id,
-            'type'        => 'CUSTOMER',
-        ]);
+        ])->post('https://api.wafeq.com/v1/contacts/', $payload);
 
         if ($createRes->successful()) {
             return $createRes->json('id');
         }
 
+        // Store exact Wafeq error so we can debug
+        $this->lastContactError = "Contact create failed ({$createRes->status()}): " . $createRes->body();
         return null;
     }
 
