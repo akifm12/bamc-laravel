@@ -68,16 +68,22 @@ class EInvoiceService
             return;
         }
 
-        // Build line items — Wafeq needs account uuid or account code
+        // Fetch a default revenue account from Wafeq to use on line items
+        $wafeqRevenueAccount = $this->getWafeqRevenueAccount($apiKey);
+
+        // Build line items
         $lineItems = [];
         foreach ($lines as $line) {
-            $lineItems[] = [
+            $item = [
                 'description' => $line->description,
                 'quantity'    => (float) $line->quantity,
                 'unit_amount' => (float) $line->unit_price,
-                'account'     => $line->account_code ?: '4000', // fallback to generic revenue
                 'tax_amount'  => (float) $line->vat_amount,
             ];
+            if ($wafeqRevenueAccount) {
+                $item['account'] = $wafeqRevenueAccount;
+            }
+            $lineItems[] = $item;
         }
 
         $payload = [
@@ -117,6 +123,18 @@ class EInvoiceService
             $body = $response->body();
             $this->markFailed($invoiceId, "Wafeq API error ({$response->status()}): {$body}");
         }
+    }
+
+    private function getWafeqRevenueAccount(string $apiKey): ?string
+    {
+        $res = Http::withHeaders(['Authorization' => 'Api-Key ' . $apiKey])
+            ->get('https://api.wafeq.com/v1/accounts/', ['account_type' => 'revenue', 'limit' => 1]);
+
+        if ($res->successful()) {
+            $results = $res->json('results') ?? [];
+            return $results[0]['id'] ?? null;
+        }
+        return null;
     }
 
     private function ensureWafeqContact(object $invoice, string $apiKey): ?string
