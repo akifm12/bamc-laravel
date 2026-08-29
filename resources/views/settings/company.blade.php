@@ -236,12 +236,12 @@
             </div>
             <div class="col-span-2">
                 <label class="text-xs text-gray-500 block mb-1">
-                    Wafeq Revenue Account ID
-                    <span class="text-gray-400">— Wafeq portal → Chart of Accounts → any income/revenue account → copy its ID</span>
+                    Wafeq Revenue Account Code
+                    <span class="text-gray-400">— use the account code from your Wafeq Chart of Accounts (e.g. 411 = Sales)</span>
                 </label>
                 <input type="text" name="einvoicing_revenue_account_id"
                     value="{{ old('einvoicing_revenue_account_id', $company->einvoicing_revenue_account_id ?? '') }}"
-                    placeholder="e.g. acc_XXXXXXXX"
+                    placeholder="e.g. 411"
                     class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm font-mono">
                 <p class="text-xs text-gray-400 mt-1">Used for all invoice line items submitted to Wafeq.</p>
             </div>
