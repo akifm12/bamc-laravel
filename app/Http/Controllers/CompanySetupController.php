@@ -66,9 +66,10 @@ class CompanySetupController extends Controller
             'bank_iban'               => $request->bank_iban,
             'bank_swift'              => $request->bank_swift,
             'logo_path'               => $logoPath,
-            'einvoicing_enabled'      => $request->boolean('einvoicing_enabled'),
-            'einvoicing_provider'     => $request->einvoicing_provider ?: 'wafeq',
-            'einvoicing_seller_id'    => $request->einvoicing_seller_id,
+            'einvoicing_enabled'             => $request->boolean('einvoicing_enabled'),
+            'einvoicing_provider'            => $request->einvoicing_provider ?: 'wafeq',
+            'einvoicing_seller_id'           => $request->einvoicing_seller_id,
+            'einvoicing_revenue_account_id'  => $request->einvoicing_revenue_account_id ?: null,
             'updated_at'              => now(),
         ]);
 

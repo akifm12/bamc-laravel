@@ -235,6 +235,17 @@
                     class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
             </div>
             <div class="col-span-2">
+                <label class="text-xs text-gray-500 block mb-1">
+                    Wafeq Revenue Account ID
+                    <span class="text-gray-400">— Wafeq portal → Chart of Accounts → any income/revenue account → copy its ID</span>
+                </label>
+                <input type="text" name="einvoicing_revenue_account_id"
+                    value="{{ old('einvoicing_revenue_account_id', $company->einvoicing_revenue_account_id ?? '') }}"
+                    placeholder="e.g. acc_XXXXXXXX"
+                    class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm font-mono">
+                <p class="text-xs text-gray-400 mt-1">Used for all invoice line items submitted to Wafeq.</p>
+            </div>
+            <div class="col-span-2">
                 <label class="text-xs text-gray-500 block mb-1">API Key</label>
                 @if($company->einvoicing_api_key)
                 <p class="text-xs text-green-600 mb-1">✅ Key saved on file — paste a new key below only if you want to replace it.</p>

@@ -101,7 +101,7 @@
                         <p class="text-xs text-red-500 max-w-xs text-right">{{ $invoice->einvoice_error }}</p>
                         <form method="POST" action="/invoices/{{ $invoice->id }}/retry-einvoice">
                             @csrf
-                            <button class="text-xs bg-orange-600 text-white px-2 py-0.5 rounded hover:bg-orange-700">
+                            <button style="background:#ea580c;color:#fff;font-size:0.75rem;padding:0.25rem 0.5rem;border-radius:0.25rem;border:none;cursor:pointer;">
                                 Retry E-Invoice
                             </button>
                         </form>

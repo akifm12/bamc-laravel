@@ -68,15 +68,21 @@ class EInvoiceService
             return;
         }
 
-        // Build line items — no account field; Wafeq categorises on their end
+        $wafeqAccountId = $company->einvoicing_revenue_account_id ?? null;
+
+        // Build line items
         $lineItems = [];
         foreach ($lines as $line) {
-            $lineItems[] = [
+            $item = [
                 'description' => $line->description,
                 'quantity'    => (float) $line->quantity,
                 'unit_amount' => (float) $line->unit_price,
                 'tax_amount'  => (float) $line->vat_amount,
             ];
+            if ($wafeqAccountId) {
+                $item['account'] = $wafeqAccountId;
+            }
+            $lineItems[] = $item;
         }
 
         $payload = [
