@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\EInvoiceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -62,12 +63,35 @@ class CompanySetupController extends Controller
             'bank_iban'               => $request->bank_iban,
             'bank_swift'              => $request->bank_swift,
             'logo_path'               => $logoPath,
+            'einvoicing_enabled'      => $request->boolean('einvoicing_enabled'),
+            'einvoicing_provider'     => $request->einvoicing_provider ?: 'wafeq',
+            'einvoicing_seller_id'    => $request->einvoicing_seller_id,
             'updated_at'              => now(),
         ]);
+
+        // Encrypt API key only if a new one was supplied (empty = keep existing)
+        if ($request->filled('einvoicing_api_key')) {
+            $svc = new EInvoiceService();
+            DB::table('companies')->where('id', $id)->update([
+                'einvoicing_api_key' => $svc->encryptKey($request->einvoicing_api_key),
+            ]);
+        }
 
         session(['company_name' => $request->name]);
 
         return redirect('/settings/company')->with('success', 'Company details updated.');
+    }
+
+    public function testEInvoiceConnection(Request $request)
+    {
+        if (!auth()->user()->is_super_admin) abort(403);
+
+        $apiKey   = $request->api_key;
+        $provider = $request->provider ?? 'wafeq';
+
+        $result = (new EInvoiceService())->testConnection($apiKey, $provider);
+
+        return response()->json($result);
     }
 
     public function fiscalYears()

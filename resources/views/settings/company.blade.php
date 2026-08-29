@@ -203,6 +203,57 @@
         </div>
     </div>
 
+    @if(auth()->user()->is_super_admin)
+    <!-- E-Invoicing -->
+    <div class="bg-white rounded-lg border border-gray-200 p-5" x-data="{ enabled: {{ $company->einvoicing_enabled ? 'true' : 'false' }} }">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-gray-700 text-sm">E-Invoicing Integration
+                <span class="ml-2 font-normal text-gray-400">(Super Admin only)</span>
+            </h3>
+            <label class="flex items-center gap-2 cursor-pointer">
+                <span class="text-xs text-gray-500">Enable</span>
+                <input type="hidden" name="einvoicing_enabled" value="0">
+                <input type="checkbox" name="einvoicing_enabled" value="1" x-model="enabled"
+                    {{ $company->einvoicing_enabled ? 'checked' : '' }}
+                    class="w-4 h-4 text-green-600 border-gray-300 rounded">
+            </label>
+        </div>
+
+        <div x-show="enabled" x-transition class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="text-xs text-gray-500 block mb-1">Provider</label>
+                <select name="einvoicing_provider" class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
+                    <option value="wafeq" {{ ($company->einvoicing_provider ?? 'wafeq') === 'wafeq' ? 'selected' : '' }}>Wafeq</option>
+                </select>
+                <p class="text-xs text-gray-400 mt-1">Additional providers can be added as needed.</p>
+            </div>
+            <div>
+                <label class="text-xs text-gray-500 block mb-1">Seller ID <span class="text-gray-400">(optional — Wafeq contact UUID)</span></label>
+                <input type="text" name="einvoicing_seller_id"
+                    value="{{ old('einvoicing_seller_id', $company->einvoicing_seller_id) }}"
+                    placeholder="Leave blank to use your Wafeq account default"
+                    class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
+            </div>
+            <div class="col-span-2">
+                <label class="text-xs text-gray-500 block mb-1">API Key
+                    <span class="text-gray-400">(leave blank to keep existing key)</span>
+                </label>
+                <div class="flex gap-2">
+                    <input type="password" name="einvoicing_api_key" id="einvoicing_api_key"
+                        placeholder="{{ $company->einvoicing_api_key ? '••••••••••••••••' : 'Paste API key here' }}"
+                        autocomplete="new-password"
+                        class="flex-1 border border-gray-200 rounded px-3 py-1.5 text-sm font-mono">
+                    <button type="button" onclick="testEInvoiceConnection()" id="btn-test-conn"
+                        class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 whitespace-nowrap">
+                        Test Connection
+                    </button>
+                </div>
+                <p id="conn-result" class="text-xs mt-1 hidden"></p>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <div class="flex gap-3">
         <button type="submit" class="bg-green-700 text-white text-sm px-5 py-2 rounded hover:bg-green-800">
             Save Changes
@@ -213,5 +264,44 @@
     </div>
 </form>
 </div>
+
+@push('scripts')
+<script>
+function testEInvoiceConnection() {
+    const keyInput = document.getElementById('einvoicing_api_key');
+    const result   = document.getElementById('conn-result');
+    const btn      = document.getElementById('btn-test-conn');
+    const key      = keyInput.value.trim();
+
+    if (!key) {
+        result.textContent = 'Enter an API key to test.';
+        result.className   = 'text-xs mt-1 text-yellow-600';
+        result.classList.remove('hidden');
+        return;
+    }
+
+    btn.textContent = 'Testing…';
+    btn.disabled    = true;
+
+    fetch('/settings/company/test-einvoice', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+        body:    JSON.stringify({ api_key: key, provider: document.querySelector('[name=einvoicing_provider]').value }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        result.textContent = data.message;
+        result.className   = 'text-xs mt-1 ' + (data.success ? 'text-green-600' : 'text-red-600');
+        result.classList.remove('hidden');
+    })
+    .catch(() => {
+        result.textContent = 'Network error — check console.';
+        result.className   = 'text-xs mt-1 text-red-600';
+        result.classList.remove('hidden');
+    })
+    .finally(() => { btn.textContent = 'Test Connection'; btn.disabled = false; });
+}
+</script>
+@endpush
 
 @endsection

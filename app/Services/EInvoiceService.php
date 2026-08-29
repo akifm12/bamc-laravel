@@ -1,0 +1,197 @@
+<?php
+
+namespace App\Services;
+
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
+
+/**
+ * Provider-agnostic e-invoicing service.
+ * Adding a new ASP: implement a driver method (e.g. submitViaNewProvider())
+ * and register it in the driver dispatch below. InvoiceController doesn't change.
+ */
+class EInvoiceService
+{
+    public function submitInvoice(int $invoiceId, int $companyId): void
+    {
+        $company = DB::table('companies')->find($companyId);
+
+        if (!$company || !$company->einvoicing_enabled) {
+            return;
+        }
+
+        $provider = $company->einvoicing_provider ?? 'wafeq';
+        $apiKey   = $this->decryptKey($company->einvoicing_api_key);
+
+        if (!$apiKey) {
+            $this->markFailed($invoiceId, 'E-invoicing API key not configured.');
+            return;
+        }
+
+        match ($provider) {
+            'wafeq'  => $this->submitViaWafeq($invoiceId, $companyId, $company, $apiKey),
+            default  => $this->markFailed($invoiceId, "Unknown provider: {$provider}"),
+        };
+    }
+
+    // ─── Wafeq Driver ────────────────────────────────────────────────────────
+
+    private function submitViaWafeq(int $invoiceId, int $companyId, object $company, string $apiKey): void
+    {
+        $invoice = DB::table('invoices')
+            ->join('customers', 'customers.id', '=', 'invoices.customer_id')
+            ->where('invoices.id', $invoiceId)
+            ->select('invoices.*', 'customers.name as customer_name', 'customers.email as customer_email',
+                     'customers.phone as customer_phone', 'customers.address as customer_address',
+                     'customers.trn as customer_trn')
+            ->first();
+
+        if (!$invoice) {
+            $this->markFailed($invoiceId, 'Invoice not found.');
+            return;
+        }
+
+        $lines = DB::table('invoice_lines')
+            ->leftJoin('accounts', 'accounts.id', '=', 'invoice_lines.account_id')
+            ->where('invoice_lines.invoice_id', $invoiceId)
+            ->select('invoice_lines.*', 'accounts.name as account_name', 'accounts.code as account_code')
+            ->get();
+
+        // Ensure contact exists in Wafeq
+        $contactId = $this->ensureWafeqContact($invoice, $apiKey);
+        if (!$contactId) {
+            $this->markFailed($invoiceId, 'Failed to create/find contact in Wafeq.');
+            return;
+        }
+
+        // Build line items — Wafeq needs account uuid or account code
+        $lineItems = [];
+        foreach ($lines as $line) {
+            $lineItems[] = [
+                'description' => $line->description,
+                'quantity'    => (float) $line->quantity,
+                'unit_amount' => (float) $line->unit_price,
+                'account'     => $line->account_code ?: '4000', // fallback to generic revenue
+                'tax_amount'  => (float) $line->vat_amount,
+            ];
+        }
+
+        $payload = [
+            'contact'          => $contactId,
+            'currency'         => 'AED',
+            'invoice_date'     => $invoice->invoice_date,
+            'invoice_due_date' => $invoice->due_date ?? $invoice->invoice_date,
+            'invoice_number'   => $invoice->invoice_number,
+            'status'           => 'FINALIZED',
+            'line_items'       => $lineItems,
+            'external_id'      => (string) $invoiceId,
+            'notes'            => $invoice->notes ?? '',
+        ];
+
+        $idempotencyKey = 'inv-' . $invoiceId . '-' . date('Ymd');
+
+        $response = Http::withHeaders([
+            'Authorization'         => 'Api-Key ' . $apiKey,
+            'Content-Type'          => 'application/json',
+            'X-Wafeq-Idempotency-Key' => $idempotencyKey,
+        ])->post('https://api.wafeq.com/v1/invoices/', $payload);
+
+        if ($response->successful()) {
+            $data    = $response->json();
+            $uuid    = $data['id'] ?? null;
+            $qrCode  = $data['qr_code'] ?? $data['qr'] ?? null;
+
+            DB::table('invoices')->where('id', $invoiceId)->update([
+                'einvoice_uuid'         => $uuid,
+                'einvoice_qr_code'      => $qrCode,
+                'einvoice_status'       => 'SUBMITTED',
+                'einvoice_submitted_at' => now(),
+                'einvoice_error'        => null,
+                'updated_at'            => now(),
+            ]);
+        } else {
+            $body = $response->body();
+            $this->markFailed($invoiceId, "Wafeq API error ({$response->status()}): {$body}");
+        }
+    }
+
+    private function ensureWafeqContact(object $invoice, string $apiKey): ?string
+    {
+        // Try to look up by external_id (customer id stored as external_id when we create)
+        $searchRes = Http::withHeaders([
+            'Authorization' => 'Api-Key ' . $apiKey,
+        ])->get('https://api.wafeq.com/v1/contacts/', [
+            'external_id' => 'cust-' . $invoice->customer_id,
+        ]);
+
+        if ($searchRes->successful()) {
+            $results = $searchRes->json('results') ?? [];
+            if (!empty($results)) {
+                return $results[0]['id'];
+            }
+        }
+
+        // Create new contact
+        $createRes = Http::withHeaders([
+            'Authorization' => 'Api-Key ' . $apiKey,
+            'Content-Type'  => 'application/json',
+        ])->post('https://api.wafeq.com/v1/contacts/', [
+            'name'        => $invoice->customer_name,
+            'email'       => $invoice->customer_email ?? '',
+            'phone'       => $invoice->customer_phone ?? '',
+            'address'     => $invoice->customer_address ?? '',
+            'tax_number'  => $invoice->customer_trn ?? '',
+            'external_id' => 'cust-' . $invoice->customer_id,
+            'type'        => 'CUSTOMER',
+        ]);
+
+        if ($createRes->successful()) {
+            return $createRes->json('id');
+        }
+
+        return null;
+    }
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+
+    public function testConnection(string $apiKey, string $provider = 'wafeq'): array
+    {
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Api-Key ' . $apiKey,
+            ])->get('https://api.wafeq.com/v1/contacts/', ['limit' => 1]);
+
+            if ($response->successful()) {
+                return ['success' => true, 'message' => 'Connection successful.'];
+            }
+            return ['success' => false, 'message' => 'API returned ' . $response->status() . ': ' . $response->body()];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    private function markFailed(int $invoiceId, string $error): void
+    {
+        DB::table('invoices')->where('id', $invoiceId)->update([
+            'einvoice_status' => 'FAILED',
+            'einvoice_error'  => $error,
+            'updated_at'      => now(),
+        ]);
+    }
+
+    public function encryptKey(string $key): string
+    {
+        return encrypt($key);
+    }
+
+    private function decryptKey(?string $encrypted): ?string
+    {
+        if (!$encrypted) return null;
+        try {
+            return decrypt($encrypted);
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+}

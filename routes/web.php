@@ -75,6 +75,7 @@ Route::middleware(['auth'])->group(function () {
 	Route::get('/invoices/{id}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
 	Route::post('/invoices/{id}/approve', [InvoiceController::class, 'approve'])->name('invoices.approve');
 	Route::post('/invoices/{id}/void', [InvoiceController::class, 'void'])->name('invoices.void');
+	Route::post('/invoices/{id}/retry-einvoice', [InvoiceController::class, 'retryEInvoice'])->name('invoices.retry_einvoice');
 
 // Vendors
 	Route::get('/vendors', [VendorController::class, 'index'])->name('vendors.index');
@@ -103,6 +104,7 @@ Route::middleware(['auth'])->group(function () {
 
 	Route::get('/settings/company', [CompanySetupController::class, 'index'])->name('settings.company');
 	Route::post('/settings/company/{id}', [CompanySetupController::class, 'update'])->name('settings.company.update');
+	Route::post('/settings/company/test-einvoice', [CompanySetupController::class, 'testEInvoiceConnection'])->name('settings.company.test_einvoice');
 	Route::get('/settings/fiscal-years', [CompanySetupController::class, 'fiscalYears'])->name('settings.fiscal_years');
 	Route::post('/settings/fiscal-years', [CompanySetupController::class, 'storeFiscalYear'])->name('settings.fiscal_years.store');
 	Route::post('/settings/fiscal-years/{id}/close', [CompanySetupController::class, 'closeFiscalYear'])->name('settings.fiscal_years.close');

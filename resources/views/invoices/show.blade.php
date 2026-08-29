@@ -80,6 +80,34 @@
                         @endif
                     @endif
                 </div>
+
+                @if($invoice->einvoice_status)
+                <div class="mt-3 flex flex-col items-end gap-1">
+                    @php
+                        $eStatus = strtolower($invoice->einvoice_status);
+                        $eColor  = match($eStatus) {
+                            'submitted' => 'bg-green-100 text-green-700',
+                            'failed'    => 'bg-red-100 text-red-700',
+                            default     => 'bg-gray-100 text-gray-500',
+                        };
+                    @endphp
+                    <span class="text-xs px-2 py-0.5 rounded-full {{ $eColor }}">
+                        E-Invoice: {{ strtoupper($eStatus) }}
+                        @if($eStatus === 'submitted' && $invoice->einvoice_submitted_at)
+                            &middot; {{ \Carbon\Carbon::parse($invoice->einvoice_submitted_at)->format('d M Y') }}
+                        @endif
+                    </span>
+                    @if($eStatus === 'failed')
+                        <p class="text-xs text-red-500 max-w-xs text-right">{{ Str::limit($invoice->einvoice_error, 120) }}</p>
+                        <form method="POST" action="/invoices/{{ $invoice->id }}/retry-einvoice">
+                            @csrf
+                            <button class="text-xs bg-orange-600 text-white px-2 py-0.5 rounded hover:bg-orange-700">
+                                Retry E-Invoice
+                            </button>
+                        </form>
+                    @endif
+                </div>
+                @endif
             </div>
         </div>
     </div>
@@ -151,6 +179,22 @@
     <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
         <p class="text-xs text-gray-400 mb-1">Notes</p>
         <p class="text-sm text-gray-600">{{ $invoice->notes }}</p>
+    </div>
+    @endif
+
+    @if($invoice->einvoice_qr_code)
+    <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4 flex items-center gap-6">
+        <div>
+            <p class="text-xs text-gray-400 mb-2">E-Invoice QR Code</p>
+            <img src="data:image/png;base64,{{ $invoice->einvoice_qr_code }}"
+                 alt="E-Invoice QR Code" class="w-24 h-24 border border-gray-100 rounded p-1">
+        </div>
+        <div>
+            <p class="text-xs text-gray-500">Wafeq ID: <span class="font-mono text-gray-700 text-xs">{{ $invoice->einvoice_uuid }}</span></p>
+            @if($invoice->einvoice_submitted_at)
+            <p class="text-xs text-gray-400 mt-1">Submitted: {{ \Carbon\Carbon::parse($invoice->einvoice_submitted_at)->format('d M Y H:i') }}</p>
+            @endif
+        </div>
     </div>
     @endif
 

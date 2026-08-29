@@ -142,5 +142,6 @@
 .nav-link.active { background: #f0fdf4; color: #15803d; font-weight: 600; }
 </style>
 
+@stack('scripts')
 </body>
 </html>

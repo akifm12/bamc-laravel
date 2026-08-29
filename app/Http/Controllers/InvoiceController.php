@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use App\Mail\InvoiceApproved;
+use App\Services\EInvoiceService;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class InvoiceController extends Controller
@@ -441,11 +442,41 @@ class InvoiceController extends Controller
                 ]);
             });
 
+            // Submit to e-invoicing provider if enabled (non-blocking — failure doesn't roll back approval)
+            try {
+                (new EInvoiceService())->submitInvoice($id, $companyId);
+            } catch (\Exception $e) {
+                DB::table('invoices')->where('id', $id)->update([
+                    'einvoice_status' => 'FAILED',
+                    'einvoice_error'  => $e->getMessage(),
+                    'updated_at'      => now(),
+                ]);
+            }
+
             return redirect("/invoices/{$id}")->with('success', 'Invoice approved and journal entry created. Use the Send Email button to email the invoice to the customer.');
 
         } catch (\Exception $e) {
             return redirect("/invoices/{$id}")->with('error', 'Approval failed: ' . $e->getMessage());
         }
+    }
+
+    public function retryEInvoice($id)
+    {
+        $companyId = session('company_id');
+        $invoice   = DB::table('invoices')->where('id', $id)->where('company_id', $companyId)->first();
+        if (!$invoice) abort(404);
+
+        try {
+            (new EInvoiceService())->submitInvoice($id, $companyId);
+        } catch (\Exception $e) {
+            DB::table('invoices')->where('id', $id)->update([
+                'einvoice_status' => 'FAILED',
+                'einvoice_error'  => $e->getMessage(),
+                'updated_at'      => now(),
+            ]);
+        }
+
+        return redirect("/invoices/{$id}")->with('success', 'E-invoice submission retried.');
     }
 
     public function sendEmail($id)
