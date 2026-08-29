@@ -104,6 +104,7 @@ Route::middleware(['auth'])->group(function () {
 
 	Route::get('/settings/company', [CompanySetupController::class, 'index'])->name('settings.company');
 	Route::post('/settings/company/test-einvoice', [CompanySetupController::class, 'testEInvoiceConnection'])->name('settings.company.test_einvoice');
+	Route::get('/settings/company/wafeq-accounts', [CompanySetupController::class, 'fetchWafeqAccounts'])->name('settings.company.wafeq_accounts');
 	Route::post('/settings/company/{id}', [CompanySetupController::class, 'update'])->name('settings.company.update');
 	Route::get('/settings/fiscal-years', [CompanySetupController::class, 'fiscalYears'])->name('settings.fiscal_years');
 	Route::post('/settings/fiscal-years', [CompanySetupController::class, 'storeFiscalYear'])->name('settings.fiscal_years.store');

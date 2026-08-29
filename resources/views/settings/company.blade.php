@@ -244,6 +244,13 @@
                     placeholder="e.g. 411"
                     class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm font-mono">
                 <p class="text-xs text-gray-400 mt-1">Used for all invoice line items submitted to Wafeq.</p>
+                @if($company->einvoicing_api_key)
+                <button type="button" onclick="fetchWafeqAccounts()"
+                    style="margin-top:6px;background:#4f46e5;color:#fff;font-size:0.75rem;padding:0.25rem 0.75rem;border-radius:0.25rem;border:none;cursor:pointer;">
+                    Fetch Accounts from Wafeq
+                </button>
+                <div id="wafeq-accounts-result" style="margin-top:8px;font-size:0.75rem;"></div>
+                @endif
             </div>
             <div class="col-span-2">
                 <label class="text-xs text-gray-500 block mb-1">API Key</label>
@@ -279,6 +286,28 @@
 
 @push('scripts')
 <script>
+function fetchWafeqAccounts() {
+    const el = document.getElementById('wafeq-accounts-result');
+    el.textContent = 'Fetching...';
+    fetch('/settings/company/wafeq-accounts', {
+        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) { el.textContent = data.message; el.style.color='#dc2626'; return; }
+        const accounts = data.accounts || [];
+        if (!accounts.length) { el.textContent = 'No accounts returned.'; return; }
+        const getName = a => a.name || a.account_name || a.display_name || a.title || '(no name)';
+        el.innerHTML = '<strong>Wafeq accounts — click an ID to select it:</strong><br>' +
+            accounts.map(a =>
+                `<code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;cursor:pointer;color:#1d4ed8" onclick="document.querySelector('[name=einvoicing_revenue_account_id]').value='${a.id}';this.style.background='#bbf7d0'">${a.id}</code> — ${getName(a)} <span style="color:#6b7280">(${a.account_type || a.type || ''})</span>`
+            ).join('<br>') +
+            '<br><span style="color:#6b7280">Pick a Revenue or Income type account and click Save.</span>';
+        el.style.color = '#111';
+    })
+    .catch(() => { el.textContent = 'Network error.'; el.style.color='#dc2626'; });
+}
+
 function testEInvoiceConnection() {
     const keyInput = document.getElementById('einvoicing_api_key');
     const result   = document.getElementById('conn-result');
@@ -313,9 +342,8 @@ function testEInvoiceConnection() {
                 (a.name || '').toLowerCase().includes('revenue')
             );
             const list = (revenue.length ? revenue : data.accounts).slice(0, 5);
-            result.innerHTML = '✅ Connected. Revenue accounts found:<br>' +
-                list.map(a => `<code style="background:#f3f4f6;padding:1px 4px;border-radius:3px">${a.id}</code> — ${a.name} (${a.account_type || a.type || '?'})`).join('<br>') +
-                '<br><span style="color:#6b7280">Paste one of these IDs into the Revenue Account Code field above.</span>';
+            const getName = a => a.name || a.account_name || a.display_name || a.title || '(no name)';
+            result.innerHTML = '✅ Connected. Use the <strong>Fetch Accounts from Wafeq</strong> button below to browse and select an account ID.';
         } else {
             result.textContent = data.message;
         }

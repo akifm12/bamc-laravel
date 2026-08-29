@@ -86,6 +86,33 @@ class CompanySetupController extends Controller
         return redirect('/settings/company')->with('success', 'Company details updated.');
     }
 
+    public function fetchWafeqAccounts(Request $request)
+    {
+        if (!auth()->user()->is_super_admin) abort(403);
+
+        $companyId = session('company_id');
+        $company   = DB::table('companies')->find($companyId);
+        if (!$company || !$company->einvoicing_api_key) {
+            return response()->json(['success' => false, 'message' => 'No API key saved.']);
+        }
+
+        try {
+            $apiKey = decrypt($company->einvoicing_api_key);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Could not decrypt API key.']);
+        }
+
+        $res = \Illuminate\Support\Facades\Http::withHeaders([
+            'Authorization' => 'Api-Key ' . $apiKey,
+        ])->get('https://api.wafeq.com/v1/accounts/', ['limit' => 50]);
+
+        if ($res->successful()) {
+            return response()->json(['success' => true, 'accounts' => $res->json('results') ?? []]);
+        }
+
+        return response()->json(['success' => false, 'message' => 'Wafeq error: ' . $res->body()]);
+    }
+
     public function testEInvoiceConnection(Request $request)
     {
         if (!auth()->user()->is_super_admin) abort(403);
