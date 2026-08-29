@@ -107,7 +107,13 @@ class CompanySetupController extends Controller
         ])->get('https://api.wafeq.com/v1/accounts/', ['limit' => 50]);
 
         if ($res->successful()) {
-            return response()->json(['success' => true, 'accounts' => $res->json('results') ?? []]);
+            $accounts = $res->json('results') ?? [];
+            // Also return raw sample so we can see actual field names
+            return response()->json([
+                'success'    => true,
+                'accounts'   => $accounts,
+                'raw_sample' => array_slice($accounts, 0, 3),
+            ]);
         }
 
         return response()->json(['success' => false, 'message' => 'Wafeq error: ' . $res->body()]);

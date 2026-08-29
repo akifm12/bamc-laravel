@@ -302,7 +302,8 @@ function fetchWafeqAccounts() {
             accounts.map(a =>
                 `<code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;cursor:pointer;color:#1d4ed8" onclick="document.querySelector('[name=einvoicing_revenue_account_id]').value='${a.id}';this.style.background='#bbf7d0'">${a.id}</code> — ${getName(a)} <span style="color:#6b7280">(${a.account_type || a.type || ''})</span>`
             ).join('<br>') +
-            '<br><span style="color:#6b7280">Pick a Revenue or Income type account and click Save.</span>';
+            '<br><span style="color:#6b7280">Pick a Revenue or Income type account and click Save.</span>' +
+        '<br><br><strong>Raw sample (first 3 accounts):</strong><br><pre style="font-size:10px;background:#f3f4f6;padding:6px;border-radius:4px;overflow-x:auto">' + JSON.stringify(data.raw_sample, null, 2) + '</pre>';
         el.style.color = '#111';
     })
     .catch(() => { el.textContent = 'Network error.'; el.style.color='#dc2626'; });
