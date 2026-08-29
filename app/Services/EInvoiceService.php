@@ -92,7 +92,7 @@ class EInvoiceService
             'notes'            => $invoice->notes ?? '',
         ];
 
-        $idempotencyKey = 'inv-' . $invoiceId . '-' . date('Ymd');
+        $idempotencyKey = Str::uuid()->toString();
 
         $response = Http::withHeaders([
             'Authorization'         => 'Api-Key ' . $apiKey,
