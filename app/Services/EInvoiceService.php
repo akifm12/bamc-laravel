@@ -89,15 +89,16 @@ class EInvoiceService
         }
 
         $payload = [
-            'contact'          => $contactId,
-            'currency'         => 'AED',
-            'invoice_date'     => $invoice->invoice_date,
-            'invoice_due_date' => $invoice->due_date ?? $invoice->invoice_date,
-            'invoice_number'   => $invoice->invoice_number,
-            'status'           => 'SENT',
-            'line_items'       => $lineItems,
-            'external_id'      => (string) $invoiceId,
-            'notes'            => $invoice->notes ?? '',
+            'contact'           => $contactId,
+            'currency'          => 'AED',
+            'invoice_date'      => $invoice->invoice_date,
+            'invoice_due_date'  => $invoice->due_date ?? $invoice->invoice_date,
+            'invoice_number'    => $invoice->invoice_number,
+            'status'            => 'SENT',
+            'tax_amount_type'   => 'TAX_EXCLUSIVE',
+            'line_items'        => $lineItems,
+            'external_id'       => (string) $invoiceId,
+            'notes'             => $invoice->notes ?? '',
         ];
 
         $idempotencyKey = Str::uuid()->toString();
@@ -137,19 +138,18 @@ class EInvoiceService
             ->get('https://api.wafeq.com/v1/tax-rates/', ['limit' => 50]);
 
         if (!$res->successful()) {
-            // Try alternate endpoint name
             $res = Http::withHeaders(['Authorization' => 'Api-Key ' . $apiKey])
                 ->get('https://api.wafeq.com/v1/taxes/', ['limit' => 50]);
         }
 
         if ($res->successful()) {
             $results = $res->json('results') ?? [];
-            // Find UAE VAT 5%
+            \Log::info('WAFEQ_TAX_RATES', ['results' => $results]);
+
             foreach ($results as $tax) {
                 $rate = $tax['rate'] ?? $tax['tax_rate'] ?? $tax['percentage'] ?? null;
                 if ($rate == 5) return $tax['id'];
             }
-            // Fallback: return first non-zero tax
             foreach ($results as $tax) {
                 $rate = $tax['rate'] ?? $tax['tax_rate'] ?? $tax['percentage'] ?? 0;
                 if ($rate > 0) return $tax['id'];
