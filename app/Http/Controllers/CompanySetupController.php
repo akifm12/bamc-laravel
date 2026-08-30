@@ -106,8 +106,7 @@ class CompanySetupController extends Controller
             'Authorization' => 'Api-Key ' . $apiKey,
         ])->get('https://api.wafeq.com/v1/accounts/', [
             'classification' => 'REVENUE',
-            'is_posting'     => 'true',
-            'limit'          => 50,
+            'limit'          => 100,
         ]);
 
         if ($res->successful()) {

@@ -297,10 +297,11 @@ function fetchWafeqAccounts() {
         if (!data.success) { el.textContent = data.message; el.style.color='#dc2626'; return; }
         const accounts = data.accounts || [];
         if (!accounts.length) { el.textContent = 'No accounts returned.'; return; }
-        const getName = a => a.name_en || a.name || a.account_name || '(no name)';
+        const getName = a => a.name_en || a.name || '(no name)';
+        const posting = accounts.filter(a => a.is_posting === true);
         el.innerHTML = '<strong>Revenue posting accounts — click an ID to select it:</strong><br>' +
-            accounts.map(a =>
-                `<code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;cursor:pointer;color:#1d4ed8" onclick="document.querySelector('[name=einvoicing_revenue_account_id]').value='${a.id}';this.style.background='#bbf7d0'">${a.id}</code> — [${a.account_code}] ${getName(a)} <span style="color:#6b7280">(${a.account_type || ''})</span>`
+            posting.map(a =>
+                `<code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;cursor:pointer;color:#1d4ed8" onclick="document.querySelector('[name=einvoicing_revenue_account_id]').value='${a.id}';this.style.background='#bbf7d0'">${a.id}</code> — [${a.account_code}] ${getName(a)}`
             ).join('<br>') +
             '<br><span style="color:#6b7280">Pick a Revenue or Income type account and click Save.</span>' +
         '<br><br><strong>Raw sample (first 3 accounts):</strong><br><pre style="font-size:10px;background:#f3f4f6;padding:6px;border-radius:4px;overflow-x:auto">' + JSON.stringify(data.raw_sample, null, 2) + '</pre>';
