@@ -146,13 +146,16 @@ class EInvoiceService
             $results = $res->json('results') ?? [];
             \Log::info('WAFEQ_TAX_RATES', ['results' => $results]);
 
+            // Best match: 5% SALES type (standard output VAT)
             foreach ($results as $tax) {
-                $rate = $tax['rate'] ?? $tax['tax_rate'] ?? $tax['percentage'] ?? null;
-                if ($rate == 5) return $tax['id'];
+                $rate = (float) ($tax['rate'] ?? 0);
+                $type = $tax['tax_type'] ?? '';
+                if (abs($rate - 0.05) < 0.001 && $type === 'SALES') return $tax['id'];
             }
+            // Fallback: any 5% tax
             foreach ($results as $tax) {
-                $rate = $tax['rate'] ?? $tax['tax_rate'] ?? $tax['percentage'] ?? 0;
-                if ($rate > 0) return $tax['id'];
+                $rate = (float) ($tax['rate'] ?? 0);
+                if (abs($rate - 0.05) < 0.001) return $tax['id'];
             }
         }
         return null;
