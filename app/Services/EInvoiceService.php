@@ -94,7 +94,7 @@ class EInvoiceService
             'invoice_date'     => $invoice->invoice_date,
             'invoice_due_date' => $invoice->due_date ?? $invoice->invoice_date,
             'invoice_number'   => $invoice->invoice_number,
-            'status'           => 'FINALIZED',
+            'status'           => 'SENT',
             'line_items'       => $lineItems,
             'external_id'      => (string) $invoiceId,
             'notes'            => $invoice->notes ?? '',
