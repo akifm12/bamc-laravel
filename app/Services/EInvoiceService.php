@@ -83,7 +83,10 @@ class EInvoiceService
                 $item['account'] = $wafeqAccountId;
             }
             if ($wafeqVatId && (float) $line->vat_amount > 0) {
-                $item['tax_rate'] = $wafeqVatId;
+                $item['taxes'] = [[
+                    'tax_rate' => $wafeqVatId,
+                    'amount'   => (float) $line->vat_amount,
+                ]];
             }
             $lineItems[] = $item;
         }
