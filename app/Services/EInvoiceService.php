@@ -114,9 +114,20 @@ class EInvoiceService
         \Log::info('WAFEQ_INVOICE_RESPONSE', ['status' => $response->status(), 'body' => $response->body()]);
 
         if ($response->successful()) {
-            $data    = $response->json();
-            $uuid    = $data['id'] ?? null;
-            $qrCode  = $data['qr_code'] ?? $data['qr'] ?? null;
+            $data = $response->json();
+            $uuid = $data['id'] ?? null;
+
+            // Wafeq doesn't always include qr_code in POST response — fetch it
+            $qrCode = $data['qr_code'] ?? $data['qr'] ?? $data['qr_image'] ?? null;
+            if (!$qrCode && $uuid) {
+                $fetchRes = Http::withHeaders(['Authorization' => 'Api-Key ' . $apiKey])
+                    ->get("https://api.wafeq.com/v1/invoices/{$uuid}/");
+                if ($fetchRes->successful()) {
+                    $fetched = $fetchRes->json();
+                    \Log::info('WAFEQ_INVOICE_FETCH', ['body' => $fetched]);
+                    $qrCode = $fetched['qr_code'] ?? $fetched['qr'] ?? $fetched['qr_image'] ?? null;
+                }
+            }
 
             DB::table('invoices')->where('id', $invoiceId)->update([
                 'einvoice_uuid'         => $uuid,
