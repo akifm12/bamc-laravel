@@ -206,6 +206,14 @@
 </div>
 @endif
 
+@if($invoice->einvoice_qr_code)
+<div style="margin-top:14px; text-align:right;">
+    <img src="data:image/png;base64,{{ $invoice->einvoice_qr_code }}"
+         alt="E-Invoice QR" style="width:80px; height:80px;">
+    <div style="font-size:8px; color:#6b7280; margin-top:2px;">E-Invoice (FTA)</div>
+</div>
+@endif
+
 <!-- BANK DETAILS - fixed to bottom above footer -->
 @if($company->bank_name || $company->bank_account_number || $company->bank_iban)
 <div class="bank-section">
