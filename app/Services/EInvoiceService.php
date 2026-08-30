@@ -105,11 +105,15 @@ class EInvoiceService
 
         $idempotencyKey = Str::uuid()->toString();
 
+        \Log::info('WAFEQ_INVOICE_PAYLOAD', ['payload' => $payload]);
+
         $response = Http::withHeaders([
             'Authorization'         => 'Api-Key ' . $apiKey,
             'Content-Type'          => 'application/json',
             'X-Wafeq-Idempotency-Key' => $idempotencyKey,
         ])->post('https://api.wafeq.com/v1/invoices/', $payload);
+
+        \Log::info('WAFEQ_INVOICE_RESPONSE', ['status' => $response->status(), 'body' => $response->body()]);
 
         if ($response->successful()) {
             $data    = $response->json();
