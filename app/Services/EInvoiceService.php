@@ -69,6 +69,7 @@ class EInvoiceService
         }
 
         $wafeqAccountId = $company->einvoicing_revenue_account_id ?? null;
+        $wafeqVatId     = $this->getWafeqVatId($apiKey);
 
         // Build line items
         $lineItems = [];
@@ -81,11 +82,8 @@ class EInvoiceService
             if ($wafeqAccountId) {
                 $item['account'] = $wafeqAccountId;
             }
-            // Calculate VAT rate from the line amounts
-            $lineAmount = (float) $line->quantity * (float) $line->unit_price;
-            $vatAmount  = (float) $line->vat_amount;
-            if ($vatAmount > 0 && $lineAmount > 0) {
-                $item['tax_rate'] = round(($vatAmount / $lineAmount) * 100, 2);
+            if ($wafeqVatId && (float) $line->vat_amount > 0) {
+                $item['tax_rate'] = $wafeqVatId;
             }
             $lineItems[] = $item;
         }
@@ -127,6 +125,33 @@ class EInvoiceService
             $body = $response->body();
             $this->markFailed($invoiceId, "Wafeq API error ({$response->status()}): {$body}");
         }
+    }
+
+    private function getWafeqVatId(string $apiKey): ?string
+    {
+        $res = Http::withHeaders(['Authorization' => 'Api-Key ' . $apiKey])
+            ->get('https://api.wafeq.com/v1/tax-rates/', ['limit' => 50]);
+
+        if (!$res->successful()) {
+            // Try alternate endpoint name
+            $res = Http::withHeaders(['Authorization' => 'Api-Key ' . $apiKey])
+                ->get('https://api.wafeq.com/v1/taxes/', ['limit' => 50]);
+        }
+
+        if ($res->successful()) {
+            $results = $res->json('results') ?? [];
+            // Find UAE VAT 5%
+            foreach ($results as $tax) {
+                $rate = $tax['rate'] ?? $tax['tax_rate'] ?? $tax['percentage'] ?? null;
+                if ($rate == 5) return $tax['id'];
+            }
+            // Fallback: return first non-zero tax
+            foreach ($results as $tax) {
+                $rate = $tax['rate'] ?? $tax['tax_rate'] ?? $tax['percentage'] ?? 0;
+                if ($rate > 0) return $tax['id'];
+            }
+        }
+        return null;
     }
 
     private function ensureWafeqContact(object $invoice, string $apiKey): ?string
