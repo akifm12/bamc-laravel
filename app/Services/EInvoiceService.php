@@ -77,10 +77,15 @@ class EInvoiceService
                 'description' => $line->description,
                 'quantity'    => (float) $line->quantity,
                 'unit_amount' => (float) $line->unit_price,
-                'tax_amount'  => (float) $line->vat_amount,
             ];
             if ($wafeqAccountId) {
                 $item['account'] = $wafeqAccountId;
+            }
+            // Calculate VAT rate from the line amounts
+            $lineAmount = (float) $line->quantity * (float) $line->unit_price;
+            $vatAmount  = (float) $line->vat_amount;
+            if ($vatAmount > 0 && $lineAmount > 0) {
+                $item['tax_rate'] = round(($vatAmount / $lineAmount) * 100, 2);
             }
             $lineItems[] = $item;
         }
