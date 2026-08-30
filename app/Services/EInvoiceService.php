@@ -103,31 +103,18 @@ class EInvoiceService
 
         $idempotencyKey = Str::uuid()->toString();
 
-        \Log::info('WAFEQ_INVOICE_PAYLOAD', ['payload' => $payload]);
-
         $response = Http::withHeaders([
             'Authorization'         => 'Api-Key ' . $apiKey,
             'Content-Type'          => 'application/json',
             'X-Wafeq-Idempotency-Key' => $idempotencyKey,
         ])->post('https://api.wafeq.com/v1/invoices/', $payload);
 
-        \Log::info('WAFEQ_INVOICE_RESPONSE', ['status' => $response->status(), 'body' => $response->body()]);
-
         if ($response->successful()) {
             $data = $response->json();
             $uuid = $data['id'] ?? null;
 
-            // Wafeq doesn't always include qr_code in POST response — fetch it
+            // QR code is issued by FTA after they stamp the invoice (not available until mandate is live)
             $qrCode = $data['qr_code'] ?? $data['qr'] ?? $data['qr_image'] ?? null;
-            if (!$qrCode && $uuid) {
-                $fetchRes = Http::withHeaders(['Authorization' => 'Api-Key ' . $apiKey])
-                    ->get("https://api.wafeq.com/v1/invoices/{$uuid}/");
-                if ($fetchRes->successful()) {
-                    $fetched = $fetchRes->json();
-                    \Log::info('WAFEQ_INVOICE_FETCH', ['body' => $fetched]);
-                    $qrCode = $fetched['qr_code'] ?? $fetched['qr'] ?? $fetched['qr_image'] ?? null;
-                }
-            }
 
             DB::table('invoices')->where('id', $invoiceId)->update([
                 'einvoice_uuid'         => $uuid,
@@ -155,8 +142,6 @@ class EInvoiceService
 
         if ($res->successful()) {
             $results = $res->json('results') ?? [];
-            \Log::info('WAFEQ_TAX_RATES', ['results' => $results]);
-
             // Best match: 5% SALES type (standard output VAT)
             foreach ($results as $tax) {
                 $rate = (float) ($tax['rate'] ?? 0);
