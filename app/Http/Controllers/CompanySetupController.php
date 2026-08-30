@@ -104,7 +104,11 @@ class CompanySetupController extends Controller
 
         $res = \Illuminate\Support\Facades\Http::withHeaders([
             'Authorization' => 'Api-Key ' . $apiKey,
-        ])->get('https://api.wafeq.com/v1/accounts/', ['limit' => 50]);
+        ])->get('https://api.wafeq.com/v1/accounts/', [
+            'classification' => 'REVENUE',
+            'is_posting'     => 'true',
+            'limit'          => 50,
+        ]);
 
         if ($res->successful()) {
             $accounts = $res->json('results') ?? [];
