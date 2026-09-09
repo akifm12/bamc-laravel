@@ -752,6 +752,8 @@ public function importCustomers(Request $request)
             }
 
             $entryNumber = 'GNU-' . strtoupper(substr(md5($date . $desc . rand()), 0, 6));
+            $totalDebit  = array_sum(array_column($lines, 'debit_amount'));
+            $totalCredit = array_sum(array_column($lines, 'credit_amount'));
 
             $journalId = DB::table('journal_entries')->insertGetId([
                 'company_id'    => $companyId,
@@ -762,6 +764,8 @@ public function importCustomers(Request $request)
                 'description'   => $desc ?: '(GnuCash import)',
                 'entry_date'    => $date,
                 'status'        => 'POSTED',
+                'total_debit'   => round($totalDebit, 2),
+                'total_credit'  => round($totalCredit, 2),
                 'created_by_id' => auth()->user()->id,
                 'created_at'    => now(),
                 'updated_at'    => now(),
