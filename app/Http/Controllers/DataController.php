@@ -685,25 +685,28 @@ public function importCustomers(Request $request)
             }
 
             $journalId = DB::table('journal_entries')->insertGetId([
-                'company_id'  => $companyId,
-                'reference'   => 'GNU-' . substr(md5($date . $desc . rand()), 0, 6),
-                'description' => $desc ?: '(GnuCash import)',
-                'journal_date'=> $date,
-                'status'      => 'posted',
-                'created_by'  => auth()->user()->id,
-                'created_at'  => now(),
-                'updated_at'  => now(),
+                'company_id'   => $companyId,
+                'reference'    => 'GNU-' . substr(md5($date . $desc . rand()), 0, 6),
+                'description'  => $desc ?: '(GnuCash import)',
+                'entry_date'   => $date,
+                'status'       => 'posted',
+                'created_by_id'=> auth()->user()->id,
+                'created_at'   => now(),
+                'updated_at'   => now(),
             ]);
 
-            foreach ($lines as $line) {
+            foreach ($lines as $i => $line) {
                 DB::table('journal_lines')->insert([
-                    'journal_id'    => $journalId,
-                    'account_id'    => $line['account_id'],
-                    'description'   => $line['description'],
-                    'debit_amount'  => $line['debit_amount'],
-                    'credit_amount' => $line['credit_amount'],
-                    'created_at'    => now(),
-                    'updated_at'    => now(),
+                    'journal_entry_id' => $journalId,
+                    'company_id'       => $companyId,
+                    'account_id'       => $line['account_id'],
+                    'line_number'      => $i + 1,
+                    'description'      => $line['description'],
+                    'debit_amount'     => $line['debit_amount'],
+                    'credit_amount'    => $line['credit_amount'],
+                    'currency_code'    => 'AED',
+                    'created_at'       => now(),
+                    'updated_at'       => now(),
                 ]);
             }
 
