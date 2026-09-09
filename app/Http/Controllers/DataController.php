@@ -786,8 +786,6 @@ public function importCustomers(Request $request)
                     'debit_amount'     => $line['debit_amount'],
                     'credit_amount'    => $line['credit_amount'],
                     'currency_code'    => 'AED',
-                    'created_at'       => now(),
-                    'updated_at'       => now(),
                 ]);
             }
 
