@@ -638,9 +638,13 @@ public function importCustomers(Request $request)
 
         // --- Import Transactions ---
         $journalsImported = 0;
-        $journalErrors    = 0;
+        $skippedNoAccount = 0;
+        $skippedNoPeriod  = 0;
+        $periodCache      = []; // year (string) → period id
 
-        $gnuTrns = $xpath->query('//gnc:transaction');
+        $gnuTrns  = $xpath->query('//gnc:transaction');
+        $totalTrns = $gnuTrns ? $gnuTrns->length : 0;
+
         foreach ($gnuTrns as $trn) {
             $desc    = $get($trn, $trnNs, 'description');
             $dateStr = '';
@@ -650,11 +654,11 @@ public function importCustomers(Request $request)
                     break;
                 }
             }
-            $date  = substr($dateStr, 0, 10);
+            $date  = substr($dateStr, 0, 10); // YYYY-MM-DD
             $lines = [];
             $valid = true;
 
-            // Find splits container
+            // Parse splits
             foreach ($trn->childNodes as $child) {
                 if ($child->namespaceURI === $trnNs && $child->localName === 'splits') {
                     foreach ($child->childNodes as $split) {
@@ -680,36 +684,87 @@ public function importCustomers(Request $request)
             }
 
             if (!$valid || empty($lines)) {
-                $journalErrors++;
+                $skippedNoAccount++;
                 continue;
             }
 
-            // Look up accounting period for this date
-            $period = DB::table('accounting_periods')
-                ->where('company_id', $companyId)
-                ->where('start_date', '<=', $date)
-                ->where('end_date', '>=', $date)
-                ->first();
+            // Find or auto-create an accounting period covering this date
+            $year = substr($date, 0, 4);
+            if (!isset($periodCache[$year])) {
+                $period = DB::table('accounting_periods')
+                    ->where('company_id', $companyId)
+                    ->where('start_date', '<=', $date)
+                    ->where('end_date', '>=', $date)
+                    ->first();
+
+                if (!$period) {
+                    // Auto-create fiscal year + period for this calendar year
+                    $fyStart = "{$year}-01-01";
+                    $fyEnd   = "{$year}-12-31";
+
+                    $fyId = DB::table('fiscal_years')
+                        ->where('company_id', $companyId)
+                        ->where('start_date', $fyStart)
+                        ->value('id');
+
+                    if (!$fyId) {
+                        $fyId = DB::table('fiscal_years')->insertGetId([
+                            'company_id' => $companyId,
+                            'name'       => "FY {$year} (GnuCash)",
+                            'start_date' => $fyStart,
+                            'end_date'   => $fyEnd,
+                            'status'     => 'OPEN',
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
+
+                    $existingPeriod = DB::table('accounting_periods')
+                        ->where('company_id', $companyId)
+                        ->where('fiscal_year_id', $fyId)
+                        ->first();
+
+                    if ($existingPeriod) {
+                        $period = $existingPeriod;
+                    } else {
+                        $pid = DB::table('accounting_periods')->insertGetId([
+                            'company_id'     => $companyId,
+                            'fiscal_year_id' => $fyId,
+                            'name'           => "FY {$year}",
+                            'start_date'     => $fyStart,
+                            'end_date'       => $fyEnd,
+                            'status'         => 'OPEN',
+                            'created_at'     => now(),
+                            'updated_at'     => now(),
+                        ]);
+                        $period = DB::table('accounting_periods')->find($pid);
+                    }
+                }
+
+                $periodCache[$year] = $period;
+            }
+
+            $period = $periodCache[$year];
 
             if (!$period) {
-                $journalErrors++;
+                $skippedNoPeriod++;
                 continue;
             }
 
-            $entryNumber = 'GNU-' . substr(md5($date . $desc . rand()), 0, 6);
+            $entryNumber = 'GNU-' . strtoupper(substr(md5($date . $desc . rand()), 0, 6));
 
             $journalId = DB::table('journal_entries')->insertGetId([
-                'company_id'   => $companyId,
-                'period_id'    => $period->id,
-                'entry_number' => $entryNumber,
-                'journal_type' => 'GENERAL',
-                'reference'    => $entryNumber,
-                'description'  => $desc ?: '(GnuCash import)',
-                'entry_date'   => $date,
-                'status'       => 'POSTED',
-                'created_by_id'=> auth()->user()->id,
-                'created_at'   => now(),
-                'updated_at'   => now(),
+                'company_id'    => $companyId,
+                'period_id'     => $period->id,
+                'entry_number'  => $entryNumber,
+                'journal_type'  => 'GENERAL',
+                'reference'     => $entryNumber,
+                'description'   => $desc ?: '(GnuCash import)',
+                'entry_date'    => $date,
+                'status'        => 'POSTED',
+                'created_by_id' => auth()->user()->id,
+                'created_at'    => now(),
+                'updated_at'    => now(),
             ]);
 
             foreach ($lines as $i => $line) {
@@ -730,8 +785,10 @@ public function importCustomers(Request $request)
             $journalsImported++;
         }
 
-        $msg = "GnuCash import complete: {$accountsImported} accounts imported, {$journalsImported} transactions imported.";
-        if ($journalErrors) $msg .= " {$journalErrors} transactions skipped (unmapped accounts).";
+        $msg  = "GnuCash import complete: {$accountsImported} accounts imported, ";
+        $msg .= "{$journalsImported} of {$totalTrns} transactions imported.";
+        if ($skippedNoAccount) $msg .= " {$skippedNoAccount} skipped (account not mapped — sub-accounts not imported).";
+        if ($skippedNoPeriod)  $msg .= " {$skippedNoPeriod} skipped (could not create period).";
 
         return back()->with('success', $msg);
     }
