@@ -167,6 +167,7 @@ Route::middleware(['auth'])->group(function () {
 	Route::get('/data/templates/{type}', [DataController::class, 'downloadTemplate'])->name('data.template');
 	Route::post('/data/import/accounts', [DataController::class, 'importAccounts'])->name('data.import.accounts');
 	Route::post('/data/import/journals', [DataController::class, 'importJournals'])->name('data.import.journals');
+	Route::post('/data/import/gnucash', [DataController::class, 'importGnuCash'])->name('data.import.gnucash');
 
 	Route::get('/settings/companies', [CompanySetupController::class, 'companies'])->name('settings.companies');
 	Route::get('/settings/companies/create', [CompanySetupController::class, 'createCompany'])->name('settings.companies.create');

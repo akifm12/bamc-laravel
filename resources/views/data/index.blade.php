@@ -177,6 +177,35 @@
         </div>
     </div>
 
+    <!-- GnuCash Import -->
+    <div class="bg-white rounded-lg border border-indigo-200 overflow-hidden">
+        <div class="px-5 py-3 bg-indigo-50 border-b border-indigo-200">
+            <h3 class="font-semibold text-indigo-800">Import from GnuCash</h3>
+            <p class="text-xs text-indigo-500 mt-0.5">Upload a .gnucash file to import the full chart of accounts and all transactions.</p>
+        </div>
+        <div class="p-5">
+            <form method="POST" action="/data/import/gnucash" enctype="multipart/form-data">
+                @csrf
+                <div class="grid grid-cols-3 gap-4 mb-4 text-xs text-gray-500">
+                    <div class="bg-gray-50 rounded p-3">✅ Chart of accounts (all types)</div>
+                    <div class="bg-gray-50 rounded p-3">✅ All transactions as journal entries</div>
+                    <div class="bg-gray-50 rounded p-3">✅ Existing accounts (by code) are reused, not duplicated</div>
+                </div>
+                <div class="flex gap-3 items-end">
+                    <div class="flex-1">
+                        <label class="text-xs text-gray-500 block mb-1">Select .gnucash file</label>
+                        <input type="file" name="file" accept=".gnucash" required
+                            class="w-full text-xs text-gray-600 border border-gray-200 rounded px-2 py-1.5">
+                    </div>
+                    <button type="submit"
+                        style="background:#4f46e5;color:#fff;font-size:0.75rem;padding:0.5rem 1.25rem;border-radius:0.375rem;border:none;cursor:pointer;white-space:nowrap;">
+                        ⬆ Import GnuCash
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Warning -->
     <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-xs text-yellow-800">
         <strong>Important:</strong> Import and export operations affect live company data.

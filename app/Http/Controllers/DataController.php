@@ -512,4 +512,189 @@ public function importCustomers(Request $request)
     fclose($handle);
     return back()->with('success', "Import complete: {$imported} customers imported, {$skipped} skipped.");
 }
+
+    public function importGnuCash(Request $request)
+    {
+        if (!auth()->user()->is_super_admin) abort(403);
+        $companyId = session('company_id');
+
+        $request->validate(['file' => 'required|file']);
+
+        $path    = $request->file('file')->getPathname();
+        $raw     = file_get_contents($path);
+        $xmlStr  = @gzdecode($raw);
+        if ($xmlStr === false) $xmlStr = $raw; // already uncompressed
+
+        libxml_use_internal_errors(true);
+        $xml = simplexml_load_string($xmlStr);
+        if (!$xml) {
+            return back()->with('error', 'Could not parse GnuCash file. Make sure it is a valid .gnucash file.');
+        }
+
+        $xml->registerXPathNamespace('gnc',   'http://www.gnucash.org/XML/gnc');
+        $xml->registerXPathNamespace('act',   'http://www.gnucash.org/XML/act');
+        $xml->registerXPathNamespace('trn',   'http://www.gnucash.org/XML/trn');
+        $xml->registerXPathNamespace('split', 'http://www.gnucash.org/XML/split');
+        $xml->registerXPathNamespace('ts',    'http://www.gnucash.org/XML/ts');
+
+        $typeMap = [
+            'ASSET'      => 'ASSET',
+            'BANK'       => 'ASSET',
+            'CASH'       => 'ASSET',
+            'RECEIVABLE' => 'ASSET',
+            'STOCK'      => 'ASSET',
+            'MUTUAL'     => 'ASSET',
+            'LIABILITY'  => 'LIABILITY',
+            'CREDIT'     => 'LIABILITY',
+            'PAYABLE'    => 'LIABILITY',
+            'EQUITY'     => 'EQUITY',
+            'INCOME'     => 'REVENUE',
+            'REVENUE'    => 'REVENUE',
+            'EXPENSE'    => 'EXPENSE',
+        ];
+
+        $normalBalance = [
+            'ASSET'     => 'DEBIT',
+            'EXPENSE'   => 'DEBIT',
+            'LIABILITY' => 'CREDIT',
+            'EQUITY'    => 'CREDIT',
+            'REVENUE'   => 'CREDIT',
+        ];
+
+        // --- Import Accounts ---
+        $accountsImported = 0;
+        $guidToId = []; // gnucash guid → our accounts.id
+
+        $gnuAccounts = $xml->xpath('//gnc:account');
+        foreach ($gnuAccounts as $a) {
+            $a->registerXPathNamespace('act', 'http://www.gnucash.org/XML/act');
+            $gnuType = strtoupper((string) $a->children('http://www.gnucash.org/XML/act')->type);
+            if ($gnuType === 'ROOT') continue;
+
+            $ourType = $typeMap[$gnuType] ?? null;
+            if (!$ourType) continue;
+
+            $guid    = (string) $a->children('http://www.gnucash.org/XML/act')->id;
+            $name    = (string) $a->children('http://www.gnucash.org/XML/act')->name;
+            $code    = (string) ($a->children('http://www.gnucash.org/XML/act')->code ?? '');
+            $desc    = (string) ($a->children('http://www.gnucash.org/XML/act')->description ?? '');
+
+            if (!$code) {
+                // Auto-generate a code from name if GnuCash has none
+                $code = strtoupper(preg_replace('/[^A-Z0-9]/i', '', substr($name, 0, 6))) ?: 'ACC';
+                $code = substr($code, 0, 10);
+                // Make unique
+                $suffix = 1;
+                $base   = $code;
+                while (DB::table('accounts')->where('company_id', $companyId)->where('code', $code)->exists()) {
+                    $code = $base . $suffix++;
+                }
+            }
+
+            // Skip if code already exists for this company
+            $existing = DB::table('accounts')
+                ->where('company_id', $companyId)
+                ->where('code', $code)
+                ->first();
+
+            if ($existing) {
+                $guidToId[$guid] = $existing->id;
+                continue;
+            }
+
+            $id = DB::table('accounts')->insertGetId([
+                'company_id'     => $companyId,
+                'code'           => $code,
+                'name'           => $name,
+                'account_type'   => $ourType,
+                'normal_balance' => $normalBalance[$ourType],
+                'description'    => $desc ?: null,
+                'is_active'      => true,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+            ]);
+
+            $guidToId[$guid] = $id;
+            $accountsImported++;
+        }
+
+        // --- Import Transactions ---
+        $journalsImported = 0;
+        $journalErrors    = 0;
+
+        $gnuTrns = $xml->xpath('//gnc:transaction');
+        foreach ($gnuTrns as $trn) {
+            $trn->registerXPathNamespace('trn',   'http://www.gnucash.org/XML/trn');
+            $trn->registerXPathNamespace('ts',    'http://www.gnucash.org/XML/ts');
+            $trn->registerXPathNamespace('split', 'http://www.gnucash.org/XML/split');
+
+            $tns       = 'http://www.gnucash.org/XML/trn';
+            $desc      = (string) $trn->children($tns)->description;
+            $dateNode  = $trn->children($tns)->{'date-posted'};
+            $dateStr   = (string) $dateNode->children('http://www.gnucash.org/XML/ts')->date;
+            $date      = substr($dateStr, 0, 10); // YYYY-MM-DD
+
+            $splits    = $trn->children($tns)->splits->children('http://www.gnucash.org/XML/trn');
+            $lines     = [];
+            $valid     = true;
+
+            foreach ($splits as $split) {
+                $sns      = 'http://www.gnucash.org/XML/split';
+                $acctGuid = (string) $split->children($sns)->account;
+                $valStr   = (string) $split->children($sns)->value; // e.g. "500000/100"
+                $memo     = (string) ($split->children($sns)->memo ?? '');
+
+                if (!isset($guidToId[$acctGuid])) {
+                    $valid = false;
+                    break;
+                }
+
+                // Parse rational number
+                $parts  = explode('/', $valStr);
+                $amount = (float) $parts[0] / (float) ($parts[1] ?? 1);
+
+                $lines[] = [
+                    'account_id'   => $guidToId[$acctGuid],
+                    'debit_amount' => $amount > 0 ? round($amount, 2) : 0,
+                    'credit_amount'=> $amount < 0 ? round(abs($amount), 2) : 0,
+                    'description'  => $memo ?: $desc,
+                ];
+            }
+
+            if (!$valid || empty($lines)) {
+                $journalErrors++;
+                continue;
+            }
+
+            $journalId = DB::table('journal_entries')->insertGetId([
+                'company_id'  => $companyId,
+                'reference'   => 'GNU-' . substr(md5($date . $desc . rand()), 0, 6),
+                'description' => $desc ?: '(GnuCash import)',
+                'journal_date'=> $date,
+                'status'      => 'posted',
+                'created_by'  => auth()->user()->id,
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ]);
+
+            foreach ($lines as $line) {
+                DB::table('journal_lines')->insert([
+                    'journal_id'    => $journalId,
+                    'account_id'    => $line['account_id'],
+                    'description'   => $line['description'],
+                    'debit_amount'  => $line['debit_amount'],
+                    'credit_amount' => $line['credit_amount'],
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
+            }
+
+            $journalsImported++;
+        }
+
+        $msg = "GnuCash import complete: {$accountsImported} accounts imported, {$journalsImported} transactions imported.";
+        if ($journalErrors) $msg .= " {$journalErrors} transactions skipped (unmapped accounts).";
+
+        return back()->with('success', $msg);
+    }
 }
