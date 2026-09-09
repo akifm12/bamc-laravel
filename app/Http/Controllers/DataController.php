@@ -689,7 +689,7 @@ public function importCustomers(Request $request)
                 'reference'    => 'GNU-' . substr(md5($date . $desc . rand()), 0, 6),
                 'description'  => $desc ?: '(GnuCash import)',
                 'entry_date'   => $date,
-                'status'       => 'posted',
+                'status'       => 'POSTED',
                 'created_by_id'=> auth()->user()->id,
                 'created_at'   => now(),
                 'updated_at'   => now(),
