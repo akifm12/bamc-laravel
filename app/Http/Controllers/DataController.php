@@ -684,9 +684,26 @@ public function importCustomers(Request $request)
                 continue;
             }
 
+            // Look up accounting period for this date
+            $period = DB::table('accounting_periods')
+                ->where('company_id', $companyId)
+                ->where('start_date', '<=', $date)
+                ->where('end_date', '>=', $date)
+                ->first();
+
+            if (!$period) {
+                $journalErrors++;
+                continue;
+            }
+
+            $entryNumber = 'GNU-' . substr(md5($date . $desc . rand()), 0, 6);
+
             $journalId = DB::table('journal_entries')->insertGetId([
                 'company_id'   => $companyId,
-                'reference'    => 'GNU-' . substr(md5($date . $desc . rand()), 0, 6),
+                'period_id'    => $period->id,
+                'entry_number' => $entryNumber,
+                'journal_type' => 'GENERAL',
+                'reference'    => $entryNumber,
                 'description'  => $desc ?: '(GnuCash import)',
                 'entry_date'   => $date,
                 'status'       => 'POSTED',
