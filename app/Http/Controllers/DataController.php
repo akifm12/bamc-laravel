@@ -520,22 +520,39 @@ public function importCustomers(Request $request)
 
         $request->validate(['file' => 'required|file']);
 
-        $path    = $request->file('file')->getPathname();
-        $raw     = file_get_contents($path);
-        $xmlStr  = @gzdecode($raw);
-        if ($xmlStr === false) $xmlStr = $raw; // already uncompressed
+        $path = $request->file('file')->getPathname();
+
+        // Decompress gzip — .gnucash files are gzip-compressed XML
+        $xmlStr = '';
+        $gz = @gzopen($path, 'rb');
+        if ($gz) {
+            while (!gzeof($gz)) $xmlStr .= gzread($gz, 65536);
+            gzclose($gz);
+        }
+        if (empty($xmlStr)) $xmlStr = file_get_contents($path); // fallback: uncompressed
 
         libxml_use_internal_errors(true);
-        $xml = simplexml_load_string($xmlStr);
-        if (!$xml) {
+        $dom = new \DOMDocument();
+        if (!$dom->loadXML($xmlStr)) {
             return back()->with('error', 'Could not parse GnuCash file. Make sure it is a valid .gnucash file.');
         }
 
-        $xml->registerXPathNamespace('gnc',   'http://www.gnucash.org/XML/gnc');
-        $xml->registerXPathNamespace('act',   'http://www.gnucash.org/XML/act');
-        $xml->registerXPathNamespace('trn',   'http://www.gnucash.org/XML/trn');
-        $xml->registerXPathNamespace('split', 'http://www.gnucash.org/XML/split');
-        $xml->registerXPathNamespace('ts',    'http://www.gnucash.org/XML/ts');
+        $xpath = new \DOMXPath($dom);
+        $xpath->registerNamespace('gnc',   'http://www.gnucash.org/XML/gnc');
+        $xpath->registerNamespace('act',   'http://www.gnucash.org/XML/act');
+        $xpath->registerNamespace('trn',   'http://www.gnucash.org/XML/trn');
+        $xpath->registerNamespace('split', 'http://www.gnucash.org/XML/split');
+        $xpath->registerNamespace('ts',    'http://www.gnucash.org/XML/ts');
+
+        // Helper: get text of first matching child element by namespace+local name
+        $get = function(\DOMNode $node, string $ns, string $local): string {
+            foreach ($node->childNodes as $child) {
+                if ($child->namespaceURI === $ns && $child->localName === $local) {
+                    return trim($child->textContent);
+                }
+            }
+            return '';
+        };
 
         $typeMap = [
             'ASSET'      => 'ASSET',
@@ -561,29 +578,31 @@ public function importCustomers(Request $request)
             'REVENUE'   => 'CREDIT',
         ];
 
+        $actNs   = 'http://www.gnucash.org/XML/act';
+        $trnNs   = 'http://www.gnucash.org/XML/trn';
+        $splitNs = 'http://www.gnucash.org/XML/split';
+        $tsNs    = 'http://www.gnucash.org/XML/ts';
+
         // --- Import Accounts ---
         $accountsImported = 0;
         $guidToId = []; // gnucash guid → our accounts.id
 
-        $gnuAccounts = $xml->xpath('//gnc:account');
+        $gnuAccounts = $xpath->query('//gnc:account');
         foreach ($gnuAccounts as $a) {
-            $a->registerXPathNamespace('act', 'http://www.gnucash.org/XML/act');
-            $gnuType = strtoupper((string) $a->children('http://www.gnucash.org/XML/act')->type);
+            $gnuType = strtoupper($get($a, $actNs, 'type'));
             if ($gnuType === 'ROOT') continue;
 
             $ourType = $typeMap[$gnuType] ?? null;
             if (!$ourType) continue;
 
-            $guid    = (string) $a->children('http://www.gnucash.org/XML/act')->id;
-            $name    = (string) $a->children('http://www.gnucash.org/XML/act')->name;
-            $code    = (string) ($a->children('http://www.gnucash.org/XML/act')->code ?? '');
-            $desc    = (string) ($a->children('http://www.gnucash.org/XML/act')->description ?? '');
+            $guid = $get($a, $actNs, 'id');
+            $name = $get($a, $actNs, 'name');
+            $code = $get($a, $actNs, 'code');
+            $desc = $get($a, $actNs, 'description');
 
             if (!$code) {
-                // Auto-generate a code from name if GnuCash has none
                 $code = strtoupper(preg_replace('/[^A-Z0-9]/i', '', substr($name, 0, 6))) ?: 'ACC';
                 $code = substr($code, 0, 10);
-                // Make unique
                 $suffix = 1;
                 $base   = $code;
                 while (DB::table('accounts')->where('company_id', $companyId)->where('code', $code)->exists()) {
@@ -591,7 +610,6 @@ public function importCustomers(Request $request)
                 }
             }
 
-            // Skip if code already exists for this company
             $existing = DB::table('accounts')
                 ->where('company_id', $companyId)
                 ->where('code', $code)
@@ -622,43 +640,43 @@ public function importCustomers(Request $request)
         $journalsImported = 0;
         $journalErrors    = 0;
 
-        $gnuTrns = $xml->xpath('//gnc:transaction');
+        $gnuTrns = $xpath->query('//gnc:transaction');
         foreach ($gnuTrns as $trn) {
-            $trn->registerXPathNamespace('trn',   'http://www.gnucash.org/XML/trn');
-            $trn->registerXPathNamespace('ts',    'http://www.gnucash.org/XML/ts');
-            $trn->registerXPathNamespace('split', 'http://www.gnucash.org/XML/split');
-
-            $tns       = 'http://www.gnucash.org/XML/trn';
-            $desc      = (string) $trn->children($tns)->description;
-            $dateNode  = $trn->children($tns)->{'date-posted'};
-            $dateStr   = (string) $dateNode->children('http://www.gnucash.org/XML/ts')->date;
-            $date      = substr($dateStr, 0, 10); // YYYY-MM-DD
-
-            $splits    = $trn->children($tns)->splits->children('http://www.gnucash.org/XML/trn');
-            $lines     = [];
-            $valid     = true;
-
-            foreach ($splits as $split) {
-                $sns      = 'http://www.gnucash.org/XML/split';
-                $acctGuid = (string) $split->children($sns)->account;
-                $valStr   = (string) $split->children($sns)->value; // e.g. "500000/100"
-                $memo     = (string) ($split->children($sns)->memo ?? '');
-
-                if (!isset($guidToId[$acctGuid])) {
-                    $valid = false;
+            $desc    = $get($trn, $trnNs, 'description');
+            $dateStr = '';
+            foreach ($trn->childNodes as $child) {
+                if ($child->namespaceURI === $trnNs && $child->localName === 'date-posted') {
+                    $dateStr = $get($child, $tsNs, 'date');
                     break;
                 }
+            }
+            $date  = substr($dateStr, 0, 10);
+            $lines = [];
+            $valid = true;
 
-                // Parse rational number
-                $parts  = explode('/', $valStr);
-                $amount = (float) $parts[0] / (float) ($parts[1] ?? 1);
+            // Find splits container
+            foreach ($trn->childNodes as $child) {
+                if ($child->namespaceURI === $trnNs && $child->localName === 'splits') {
+                    foreach ($child->childNodes as $split) {
+                        if (!($split instanceof \DOMElement)) continue;
+                        $acctGuid = $get($split, $splitNs, 'account');
+                        $valStr   = $get($split, $splitNs, 'value');
+                        $memo     = $get($split, $splitNs, 'memo');
 
-                $lines[] = [
-                    'account_id'   => $guidToId[$acctGuid],
-                    'debit_amount' => $amount > 0 ? round($amount, 2) : 0,
-                    'credit_amount'=> $amount < 0 ? round(abs($amount), 2) : 0,
-                    'description'  => $memo ?: $desc,
-                ];
+                        if (!isset($guidToId[$acctGuid])) { $valid = false; break; }
+
+                        $parts  = explode('/', $valStr);
+                        $amount = (float) $parts[0] / (float) ($parts[1] ?? 1);
+
+                        $lines[] = [
+                            'account_id'    => $guidToId[$acctGuid],
+                            'debit_amount'  => $amount > 0 ? round($amount, 2) : 0,
+                            'credit_amount' => $amount < 0 ? round(abs($amount), 2) : 0,
+                            'description'   => $memo ?: $desc,
+                        ];
+                    }
+                    break;
+                }
             }
 
             if (!$valid || empty($lines)) {
