@@ -637,19 +637,19 @@ public function importCustomers(Request $request)
             $desc       = $get($a, $actNs, 'description');
             $parentGuid = $guidParent[$guid] ?? null;
 
-            // If this account has the same name as its parent, it's a WIP/sub-account.
-            // Keep it as a separate account but append " (WIP)" so it's clearly labelled.
-            if ($parentGuid && isset($guidName[$parentGuid]) && $guidName[$parentGuid] === $name) {
-                $name = $name . ' (WIP)';
-            }
-
             if (!$code) {
                 $code = strtoupper(preg_replace('/[^A-Z0-9]/i', '', substr($name, 0, 6))) ?: 'ACC';
                 $code = substr($code, 0, 10);
-                $suffix = 1;
-                $base   = $code;
+                $suffix      = 1;
+                $base        = $code;
+                $hadCollision = false;
                 while (DB::table('accounts')->where('company_id', $companyId)->where('code', $code)->exists()) {
+                    $hadCollision = true;
                     $code = $base . $suffix++;
+                }
+                // When two accounts share the same name, the second one is the WIP sub-account
+                if ($hadCollision) {
+                    $name = $name . ' (WIP)';
                 }
             }
 
