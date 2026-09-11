@@ -198,10 +198,14 @@
                             class="w-full text-xs text-gray-600 border border-gray-200 rounded px-2 py-1.5">
                     </div>
                     <div>
+                        <label class="text-xs text-gray-500 block mb-1">Import from date <span class="text-gray-400">(optional)</span></label>
+                        <input type="date" name="import_from"
+                            class="text-xs text-gray-600 border border-gray-200 rounded px-2 py-1.5">
+                    </div>
+                    <div>
                         <label class="text-xs text-gray-500 block mb-1">Import up to date <span class="text-gray-400">(optional)</span></label>
                         <input type="date" name="import_up_to"
-                            class="text-xs text-gray-600 border border-gray-200 rounded px-2 py-1.5"
-                            placeholder="Leave blank for all dates">
+                            class="text-xs text-gray-600 border border-gray-200 rounded px-2 py-1.5">
                     </div>
                     <button type="submit"
                         style="background:#4f46e5;color:#fff;font-size:0.75rem;padding:0.5rem 1.25rem;border-radius:0.375rem;border:none;cursor:pointer;white-space:nowrap;">

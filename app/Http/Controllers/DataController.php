@@ -518,9 +518,10 @@ public function importCustomers(Request $request)
         if (!auth()->user()->is_super_admin) abort(403);
         $companyId = session('company_id');
 
-        $request->validate(['file' => 'required|file', 'import_up_to' => 'nullable|date']);
+        $request->validate(['file' => 'required|file', 'import_up_to' => 'nullable|date', 'import_from' => 'nullable|date']);
 
-        $importUpTo = $request->input('import_up_to') ?: null; // YYYY-MM-DD or null = all
+        $importUpTo   = $request->input('import_up_to') ?: null; // YYYY-MM-DD or null = all
+        $importFrom   = $request->input('import_from')  ?: null; // YYYY-MM-DD or null = all
         $path = $request->file('file')->getPathname();
 
         // Decompress gzip — .gnucash files are gzip-compressed XML
@@ -696,10 +697,19 @@ public function importCustomers(Request $request)
         }
 
         // --- Import Transactions ---
-        $journalsImported = 0;
-        $skippedNoAccount = 0;
-        $skippedNoPeriod  = 0;
-        $periodCache      = []; // year (string) → period id
+        $journalsImported   = 0;
+        $skippedNoAccount   = 0;
+        $skippedNoPeriod    = 0;
+        $skippedClosing     = 0;
+        $periodCache        = []; // year (string) → period id
+
+        // Collect IDs of Retained Earnings accounts so we can skip GnuCash closing entries
+        $retainedIds = DB::table('accounts')
+            ->where('company_id', $companyId)
+            ->where('name', 'ilike', '%retained%')
+            ->pluck('id')
+            ->flip()
+            ->all(); // keyed by id for fast isset() lookup
 
         $gnuTrns  = $xpath->query('//gnc:transaction');
         $totalTrns = $gnuTrns ? $gnuTrns->length : 0;
@@ -715,11 +725,13 @@ public function importCustomers(Request $request)
             }
             $date  = substr($dateStr, 0, 10); // YYYY-MM-DD
 
-            // Skip transactions beyond the requested cutoff date
-            if ($importUpTo && $date > $importUpTo) continue;
+            // Skip transactions outside the requested date range
+            if ($importFrom  && $date < $importFrom)  continue;
+            if ($importUpTo  && $date > $importUpTo)  continue;
 
             $lines = [];
             $valid = true;
+            $touchesRetained = false;
 
             // Parse splits
             foreach ($trn->childNodes as $child) {
@@ -731,6 +743,11 @@ public function importCustomers(Request $request)
                         $memo     = $get($split, $splitNs, 'memo');
 
                         if (!isset($guidToId[$acctGuid])) { $valid = false; break; }
+
+                        // Flag GnuCash closing entries that post to Retained Earnings
+                        if (isset($retainedIds[$guidToId[$acctGuid]])) {
+                            $touchesRetained = true;
+                        }
 
                         $parts  = explode('/', $valStr);
                         $amount = (float) $parts[0] / (float) ($parts[1] ?? 1);
@@ -744,6 +761,13 @@ public function importCustomers(Request $request)
                     }
                     break;
                 }
+            }
+
+            // Skip GnuCash closing entries — they post net income to Retained Earnings;
+            // the system will calculate and post closing entries via recalculateClosing()
+            if ($touchesRetained) {
+                $skippedClosing++;
+                continue;
             }
 
             if (!$valid || empty($lines)) {
@@ -855,11 +879,15 @@ public function importCustomers(Request $request)
             $journalsImported++;
         }
 
-        $cutoffNote = $importUpTo ? " (up to {$importUpTo})" : "";
-        $msg  = "GnuCash import complete{$cutoffNote}: {$accountsImported} accounts imported, ";
+        $rangeNote = '';
+        if ($importFrom && $importUpTo) $rangeNote = " ({$importFrom} to {$importUpTo})";
+        elseif ($importFrom)            $rangeNote = " (from {$importFrom})";
+        elseif ($importUpTo)            $rangeNote = " (up to {$importUpTo})";
+        $msg  = "GnuCash import complete{$rangeNote}: {$accountsImported} accounts imported, ";
         $msg .= "{$journalsImported} of {$totalTrns} transactions imported.";
-        if ($skippedNoAccount) $msg .= " {$skippedNoAccount} skipped (account not mapped — sub-accounts not imported).";
+        if ($skippedNoAccount) $msg .= " {$skippedNoAccount} skipped (account not mapped).";
         if ($skippedNoPeriod)  $msg .= " {$skippedNoPeriod} skipped (could not create period).";
+        if ($skippedClosing)   $msg .= " {$skippedClosing} GnuCash closing entries skipped (will be recalculated when you close each fiscal year).";
 
         return back()->with('success', $msg);
     }
