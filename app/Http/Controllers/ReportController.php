@@ -53,7 +53,7 @@ class ReportController extends Controller
                 END, a.code
         ", [$companyId, $dateTo, $companyId]);
 
-        // P&L accounts - only within date range, excluding closing entries
+        // P&L accounts - within date range, including closing entries so they zero out properly
         $plRows = DB::select("
             SELECT
                 a.code, a.name, a.account_type,
@@ -66,7 +66,6 @@ class ReportController extends Controller
                 JOIN journal_entries je ON je.id = jl.journal_entry_id
                 WHERE je.company_id = ?
                   AND je.status = 'POSTED'
-                  AND je.journal_type != 'CLOSING_ENTRY'
                   AND je.entry_date >= ?
                   AND je.entry_date <= ?
             ) jl ON jl.account_id = a.id
@@ -180,7 +179,7 @@ class ReportController extends Controller
                 END, a.code
         ", [$companyId, $dateTo, $companyId]);
 
-        // P&L accounts - date range only, excluding closing entries
+        // P&L accounts - date range, including closing entries so they zero out properly
         $plRows = DB::select("
             SELECT
                 a.code, a.name, a.account_type,
@@ -193,7 +192,6 @@ class ReportController extends Controller
                 JOIN journal_entries je ON je.id = jl.journal_entry_id
                 WHERE je.company_id = ?
                   AND je.status = 'POSTED'
-                  AND je.journal_type != 'CLOSING_ENTRY'
                   AND je.entry_date >= ?
                   AND je.entry_date <= ?
             ) jl ON jl.account_id = a.id
