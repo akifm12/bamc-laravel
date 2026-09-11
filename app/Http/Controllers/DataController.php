@@ -406,6 +406,15 @@ class DataController extends Controller
     {
         if (empty($rows)) return back()->with('error', 'No data to export.');
 
+        // Wrap code columns in ="..." so Excel doesn't auto-convert values like 5MAR to dates
+        $codeKeys = ['code', 'account_code'];
+        $rows = array_map(function($row) use ($codeKeys) {
+            foreach ($codeKeys as $key) {
+                if (isset($row[$key])) $row[$key] = '="' . $row[$key] . '"';
+            }
+            return $row;
+        }, $rows);
+
         $output = fopen('php://output', 'w');
         ob_start();
         fputcsv($output, array_keys($rows[0]));

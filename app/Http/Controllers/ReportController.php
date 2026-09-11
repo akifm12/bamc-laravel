@@ -235,7 +235,7 @@ class ReportController extends Controller
             fputcsv($f, ['Code', 'Account Name', 'Type', 'Debit', 'Credit', 'Balance']);
             foreach ($rows as $r) {
                 fputcsv($f, [
-                    $r->code, $r->name, $r->account_type,
+                    '="' . $r->code . '"', $r->name, $r->account_type,
                     number_format($r->total_debit, 2),
                     number_format($r->total_credit, 2),
                     number_format($r->total_debit - $r->total_credit, 2),
@@ -309,13 +309,13 @@ class ReportController extends Controller
             fputcsv($f, ['REVENUE']);
             fputcsv($f, ['Code', 'Account', 'Amount']);
             foreach ($revenue as $r) {
-                fputcsv($f, [$r->code, $r->name, number_format($r->balance, 2)]);
+                fputcsv($f, ['="' . $r->code . '"', $r->name, number_format($r->balance, 2)]);
             }
             fputcsv($f, ['', 'Total Revenue', number_format($totalRevenue, 2)]);
             fputcsv($f, []);
             fputcsv($f, ['EXPENSES']);
             foreach ($expenses as $r) {
-                fputcsv($f, [$r->code, $r->name, number_format(abs($r->balance), 2)]);
+                fputcsv($f, ['="' . $r->code . '"', $r->name, number_format(abs($r->balance), 2)]);
             }
             fputcsv($f, ['', 'Total Expenses', number_format($totalExpenses, 2)]);
             fputcsv($f, []);
@@ -357,19 +357,19 @@ class ReportController extends Controller
             fputcsv($f, ['ASSETS']);
             fputcsv($f, ['Code', 'Account', 'Balance']);
             foreach ($data['assets'] as $r) {
-                fputcsv($f, [$r->code, $r->name, number_format($r->balance, 2)]);
+                fputcsv($f, ['="' . $r->code . '"', $r->name, number_format($r->balance, 2)]);
             }
             fputcsv($f, ['', 'Total Assets', number_format($data['totalAssets'], 2)]);
             fputcsv($f, []);
             fputcsv($f, ['LIABILITIES']);
             foreach ($data['liabilities'] as $r) {
-                fputcsv($f, [$r->code, $r->name, number_format($r->balance, 2)]);
+                fputcsv($f, ['="' . $r->code . '"', $r->name, number_format($r->balance, 2)]);
             }
             fputcsv($f, ['', 'Total Liabilities', number_format($data['totalLiabilities'], 2)]);
             fputcsv($f, []);
             fputcsv($f, ['EQUITY']);
             foreach ($data['equity'] as $r) {
-                fputcsv($f, [$r->code, $r->name, number_format($r->balance, 2)]);
+                fputcsv($f, ['="' . $r->code . '"', $r->name, number_format($r->balance, 2)]);
             }
             fputcsv($f, ['', 'YTD Net Profit/(Loss)', number_format($data['ytdProfit'], 2)]);
             fputcsv($f, ['', 'Total Equity', number_format($data['totalEquity'], 2)]);
