@@ -518,8 +518,9 @@ public function importCustomers(Request $request)
         if (!auth()->user()->is_super_admin) abort(403);
         $companyId = session('company_id');
 
-        $request->validate(['file' => 'required|file']);
+        $request->validate(['file' => 'required|file', 'import_up_to' => 'nullable|date']);
 
+        $importUpTo = $request->input('import_up_to') ?: null; // YYYY-MM-DD or null = all
         $path = $request->file('file')->getPathname();
 
         // Decompress gzip — .gnucash files are gzip-compressed XML
@@ -655,6 +656,10 @@ public function importCustomers(Request $request)
                 }
             }
             $date  = substr($dateStr, 0, 10); // YYYY-MM-DD
+
+            // Skip transactions beyond the requested cutoff date
+            if ($importUpTo && $date > $importUpTo) continue;
+
             $lines = [];
             $valid = true;
 
@@ -792,7 +797,8 @@ public function importCustomers(Request $request)
             $journalsImported++;
         }
 
-        $msg  = "GnuCash import complete: {$accountsImported} accounts imported, ";
+        $cutoffNote = $importUpTo ? " (up to {$importUpTo})" : "";
+        $msg  = "GnuCash import complete{$cutoffNote}: {$accountsImported} accounts imported, ";
         $msg .= "{$journalsImported} of {$totalTrns} transactions imported.";
         if ($skippedNoAccount) $msg .= " {$skippedNoAccount} skipped (account not mapped — sub-accounts not imported).";
         if ($skippedNoPeriod)  $msg .= " {$skippedNoPeriod} skipped (could not create period).";
