@@ -607,12 +607,17 @@ public function importCustomers(Request $request)
             return false;
         };
 
-        // First pass: build a map of guid → parent guid so placeholders can redirect to children
+        // First pass: build guid → parent guid and guid → name maps
         $guidParent = [];
+        $guidName   = [];
         foreach ($xpath->query('//gnc:account') as $a) {
             $guid   = $get($a, $actNs, 'id');
             $parent = $get($a, $actNs, 'parent');
-            if ($guid && $parent) $guidParent[$guid] = $parent;
+            $name   = $get($a, $actNs, 'name');
+            if ($guid) {
+                $guidName[$guid] = $name;
+                if ($parent) $guidParent[$guid] = $parent;
+            }
         }
 
         $gnuAccounts = $xpath->query('//gnc:account');
@@ -626,10 +631,17 @@ public function importCustomers(Request $request)
             // Skip placeholder accounts — they are grouping containers, not transactional
             if ($isPlaceholder($a)) continue;
 
-            $guid = $get($a, $actNs, 'id');
-            $name = $get($a, $actNs, 'name');
-            $code = $get($a, $actNs, 'code');
-            $desc = $get($a, $actNs, 'description');
+            $guid       = $get($a, $actNs, 'id');
+            $name       = $get($a, $actNs, 'name');
+            $code       = $get($a, $actNs, 'code');
+            $desc       = $get($a, $actNs, 'description');
+            $parentGuid = $guidParent[$guid] ?? null;
+
+            // If this account has the same name as its parent, it's a WIP/sub-account.
+            // Keep it as a separate account but append " (WIP)" so it's clearly labelled.
+            if ($parentGuid && isset($guidName[$parentGuid]) && $guidName[$parentGuid] === $name) {
+                $name = $name . ' (WIP)';
+            }
 
             if (!$code) {
                 $code = strtoupper(preg_replace('/[^A-Z0-9]/i', '', substr($name, 0, 6))) ?: 'ACC';
