@@ -588,6 +588,33 @@ public function importCustomers(Request $request)
         $accountsImported = 0;
         $guidToId = []; // gnucash guid → our accounts.id
 
+        $slotsNs = 'http://www.gnucash.org/XML/slot';
+
+        // Helper: check if a gnc:account element is marked as a placeholder
+        $isPlaceholder = function(\DOMElement $acctEl) use ($slotsNs): bool {
+            foreach ($acctEl->childNodes as $child) {
+                if ($child->localName !== 'slots') continue;
+                foreach ($child->childNodes as $slot) {
+                    if (!($slot instanceof \DOMElement)) continue;
+                    $key = $val = '';
+                    foreach ($slot->childNodes as $slotChild) {
+                        if ($slotChild->localName === 'key')   $key = trim($slotChild->textContent);
+                        if ($slotChild->localName === 'value') $val = trim($slotChild->textContent);
+                    }
+                    if ($key === 'placeholder' && $val === 'true') return true;
+                }
+            }
+            return false;
+        };
+
+        // First pass: build a map of guid → parent guid so placeholders can redirect to children
+        $guidParent = [];
+        foreach ($xpath->query('//gnc:account') as $a) {
+            $guid   = $get($a, $actNs, 'id');
+            $parent = $get($a, $actNs, 'parent');
+            if ($guid && $parent) $guidParent[$guid] = $parent;
+        }
+
         $gnuAccounts = $xpath->query('//gnc:account');
         foreach ($gnuAccounts as $a) {
             $gnuType = strtoupper($get($a, $actNs, 'type'));
@@ -595,6 +622,9 @@ public function importCustomers(Request $request)
 
             $ourType = $typeMap[$gnuType] ?? null;
             if (!$ourType) continue;
+
+            // Skip placeholder accounts — they are grouping containers, not transactional
+            if ($isPlaceholder($a)) continue;
 
             $guid = $get($a, $actNs, 'id');
             $name = $get($a, $actNs, 'name');
@@ -635,6 +665,22 @@ public function importCustomers(Request $request)
 
             $guidToId[$guid] = $id;
             $accountsImported++;
+        }
+
+        // Redirect placeholder GUIDs to the nearest mapped ancestor
+        // so transactions referencing a placeholder don't get skipped
+        $maxDepth = 10;
+        foreach ($guidParent as $childGuid => $parentGuid) {
+            if (isset($guidToId[$childGuid])) continue; // already mapped
+            $cur = $parentGuid;
+            for ($d = 0; $d < $maxDepth; $d++) {
+                if (isset($guidToId[$cur])) {
+                    $guidToId[$childGuid] = $guidToId[$cur];
+                    break;
+                }
+                $cur = $guidParent[$cur] ?? null;
+                if (!$cur) break;
+            }
         }
 
         // --- Import Transactions ---
