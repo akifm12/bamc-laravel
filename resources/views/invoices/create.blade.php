@@ -105,10 +105,10 @@
                     <th class="px-3 py-2 text-left">Description</th>
                     <th class="px-3 py-2 text-left w-48">Revenue Account</th>
                     <th class="px-3 py-2 text-right w-16">Qty</th>
-                    <th class="px-3 py-2 text-right w-16">UOM</th>
+                    <th class="px-3 py-2 text-right w-24">UOM</th>
                     <th class="px-3 py-2 text-right w-28">Unit Price</th>
                     <th class="px-3 py-2 text-right w-20">VAT %</th>
-                    <th class="px-3 py-2 text-right w-20">Tax Cat.</th>
+                    <th class="px-3 py-2 text-right w-36">Tax Cat.</th>
                     <th class="px-3 py-2 text-right w-28">VAT Amt</th>
                     <th class="px-3 py-2 text-right w-28">Total</th>
                     <th class="px-3 py-2 w-8"></th>
