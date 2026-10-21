@@ -35,9 +35,25 @@
                     class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
             </div>
             <div>
+                <label class="text-xs text-gray-500 block mb-1">TIN <span class="text-gray-400">(first 10 digits of Corporate Tax TRN)</span></label>
+                <input type="text" name="tin" value="{{ old('tin', $company->tin) }}" maxlength="10"
+                    placeholder="e.g. 1234567890"
+                    class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
+            </div>
+            <div>
                 <label class="text-xs text-gray-500 block mb-1">Trade License No.</label>
                 <input type="text" name="trade_license_no" value="{{ old('trade_license_no', $company->trade_license_no) }}"
                     class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-gray-500 block mb-1">Legal Registration Type <span class="text-gray-400">(e-Invoice)</span></label>
+                <select name="seller_legal_reg_type" class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
+                    <option value="">— Select —</option>
+                    <option value="TL"  {{ ($company->seller_legal_reg_type ?? '') == 'TL'  ? 'selected' : '' }}>TL — Commercial/Trade License</option>
+                    <option value="EID" {{ ($company->seller_legal_reg_type ?? '') == 'EID' ? 'selected' : '' }}>EID — Emirates ID</option>
+                    <option value="PAS" {{ ($company->seller_legal_reg_type ?? '') == 'PAS' ? 'selected' : '' }}>PAS — Passport</option>
+                    <option value="CD"  {{ ($company->seller_legal_reg_type ?? '') == 'CD'  ? 'selected' : '' }}>CD — Cabinet Decision</option>
+                </select>
             </div>
             <div>
                 <label class="text-xs text-gray-500 block mb-1">VAT Registration Date</label>

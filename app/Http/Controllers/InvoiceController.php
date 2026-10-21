@@ -112,14 +112,18 @@ class InvoiceController extends Controller
             $subtotal  += $lineAmount;
             $totalVat  += $vatAmount;
             $lines[]    = [
-                'account_id'   => $accountId,
-                'description'  => $desc,
-                'quantity'     => $qty,
-                'unit_price'   => $price,
-                'line_amount'  => $lineAmount,
-                'vat_rate'     => $vatRate,
-                'vat_amount'   => $vatAmount,
-                'total_amount' => $lineAmount + $vatAmount,
+                'account_id'           => $accountId,
+                'description'          => $desc,
+                'quantity'             => $qty,
+                'unit_price'           => $price,
+                'line_amount'          => $lineAmount,
+                'vat_rate'             => $vatRate,
+                'vat_amount'           => $vatAmount,
+                'total_amount'         => $lineAmount + $vatAmount,
+                'unit_of_measure'      => $request->uom[$i] ?? 'PCE',
+                'tax_category_code'    => $request->tax_category[$i] ?? 'S',
+                'tax_exemption_reason' => $request->tax_exemption_reason[$i] ?: null,
+                'item_gross_price'     => $price,
             ];
         }
 
@@ -196,7 +200,13 @@ class InvoiceController extends Controller
                     'status'              => 'DRAFT',
                     'supplier_name'       => $company->name ?? session('company_name'),
                     'supplier_trn'        => $company->trn ?? null,
-                    'supplier_address'    => $company->address ?? null,
+                    'supplier_address'    => implode(', ', array_filter([
+                        $company->address_line1 ?? null,
+                        $company->city ?? null,
+                        $company->emirate ?? null,
+                    ])) ?: null,
+                    'payment_means_code'        => $request->payment_means_code ?? '30',
+                    'transaction_type_flags'    => $request->transaction_type_flags ?? '00000000',
                     'customer_name'       => $customer->name,
                     'customer_trn'        => $customer->trn,
                     'customer_address'    => implode(', ', array_filter([
@@ -227,17 +237,21 @@ class InvoiceController extends Controller
 
                 foreach ($lines as $i => $line) {
                     DB::table('invoice_lines')->insert([
-                        'invoice_id'   => $invoiceId,
-                        'company_id'   => $companyId,
-                        'account_id'   => $line['account_id'],
-                        'line_number'  => $i + 1,
-                        'description'  => $line['description'],
-                        'quantity'     => $line['quantity'],
-                        'unit_price'   => $line['unit_price'],
-                        'line_amount'  => $line['line_amount'],
-                        'vat_rate'     => $line['vat_rate'],
-                        'vat_amount'   => $line['vat_amount'],
-                        'total_amount' => $line['total_amount'],
+                        'invoice_id'           => $invoiceId,
+                        'company_id'           => $companyId,
+                        'account_id'           => $line['account_id'],
+                        'line_number'          => $i + 1,
+                        'description'          => $line['description'],
+                        'quantity'             => $line['quantity'],
+                        'unit_price'           => $line['unit_price'],
+                        'line_amount'          => $line['line_amount'],
+                        'vat_rate'             => $line['vat_rate'],
+                        'vat_amount'           => $line['vat_amount'],
+                        'total_amount'         => $line['total_amount'],
+                        'unit_of_measure'      => $line['unit_of_measure'],
+                        'tax_category_code'    => $line['tax_category_code'],
+                        'tax_exemption_reason' => $line['tax_exemption_reason'],
+                        'item_gross_price'     => $line['item_gross_price'],
                     ]);
                 }
             });

@@ -41,6 +41,8 @@ class CompanySetupController extends Controller
             'name'                    => $request->name,
             'name_arabic'             => $request->name_arabic,
             'trn'                     => $request->trn,
+            'tin'                     => $request->tin ?: null,
+            'seller_legal_reg_type'   => $request->seller_legal_reg_type ?: null,
             'trade_license_no'        => $request->trade_license_no,
             'vat_registration_date'   => $request->vat_registration_date ?: null,
             'vat_scheme'              => $request->vat_scheme,

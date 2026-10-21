@@ -40,6 +40,22 @@
                     {{ $customer->is_vat_registered ? 'checked' : '' }} class="rounded">
                 <label for="is_vat_registered" class="text-sm text-gray-600">VAT Registered</label>
             </div>
+            <div>
+                <label class="text-xs text-gray-500 block mb-1">Legal Registration No. <span class="text-gray-400">(e-Invoice)</span></label>
+                <input type="text" name="buyer_legal_reg_id" value="{{ old('buyer_legal_reg_id', $customer->buyer_legal_reg_id) }}"
+                    placeholder="Trade license / EID / Passport no."
+                    class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-gray-500 block mb-1">Legal Registration Type <span class="text-gray-400">(e-Invoice)</span></label>
+                <select name="buyer_legal_reg_type" class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
+                    <option value="">— Select —</option>
+                    <option value="TL"  {{ ($customer->buyer_legal_reg_type ?? '') == 'TL'  ? 'selected' : '' }}>TL — Commercial/Trade License</option>
+                    <option value="EID" {{ ($customer->buyer_legal_reg_type ?? '') == 'EID' ? 'selected' : '' }}>EID — Emirates ID</option>
+                    <option value="PAS" {{ ($customer->buyer_legal_reg_type ?? '') == 'PAS' ? 'selected' : '' }}>PAS — Passport</option>
+                    <option value="CD"  {{ ($customer->buyer_legal_reg_type ?? '') == 'CD'  ? 'selected' : '' }}>CD — Cabinet Decision</option>
+                </select>
+            </div>
         </div>
     </div>
 
