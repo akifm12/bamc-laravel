@@ -104,7 +104,7 @@
                 <tr class="text-xs text-gray-400 uppercase border-b border-gray-100">
                     <th class="px-3 py-2 text-left">Description</th>
                     <th class="px-3 py-2 text-left w-48">Revenue Account</th>
-                    <th class="px-3 py-2 text-right w-16">Qty</th>
+                    <th class="px-3 py-2 text-right w-24">Qty</th>
                     <th class="px-3 py-2 text-right w-24">UOM</th>
                     <th class="px-3 py-2 text-right w-36">Unit Price</th>
                     <th class="px-3 py-2 text-right w-20">VAT %</th>
