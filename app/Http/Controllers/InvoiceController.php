@@ -303,7 +303,9 @@ class InvoiceController extends Controller
                 'customers.contact_person',
                 'customers.email as customer_email',
                 'customers.phone as customer_phone',
-                'customers.mobile as customer_mobile'
+                'customers.mobile as customer_mobile',
+                'customers.buyer_legal_reg_id',
+                'customers.buyer_legal_reg_type'
             )
             ->first();
 

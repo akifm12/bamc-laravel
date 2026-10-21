@@ -118,7 +118,9 @@
                 @if(($company->emirate ?? null) || ($company->country ?? null)){{ implode(', ', array_filter([$company->city ?? null, $company->emirate ?? null, $company->country ?? 'UAE'])) }}<br>@endif
                 @if($company->email ?? null)Email: {{ $company->email }}<br>@endif
                 @if($company->phone ?? null)Phone: {{ $company->phone }}<br>@endif
-                @if($company->trn ?? null)TRN: {{ $company->trn }}@endif
+                @if($company->trn ?? null)TRN: {{ $company->trn }}<br>@endif
+                @if($company->tin ?? null)TIN: {{ $company->tin }}<br>@endif
+                @if($company->seller_legal_reg_type ?? null)Reg. Type: {{ $company->seller_legal_reg_type }}@endif
             </div>
         </td>
     </tr>
@@ -139,6 +141,7 @@
             <strong>Client Name:</strong> {{ $invoice->customer_name }}<br>
             @if($invoice->customer_address)<strong>Address:</strong> {{ $invoice->customer_address }}<br>@endif
             @if($invoice->customer_trn)<strong>TRN Number:</strong> {{ $invoice->customer_trn }}<br>@endif
+            @if($invoice->buyer_legal_reg_id ?? null)<strong>Reg. No.:</strong> {{ $invoice->buyer_legal_reg_id }} ({{ $invoice->buyer_legal_reg_type ?? '' }})<br>@endif
             @if($invoice->contact_person)<strong>Attn:</strong> {{ $invoice->contact_person }}<br>@endif
             @if($invoice->customer_phone)<strong>Phone:</strong> {{ $invoice->customer_phone }}<br>@endif
             @if($invoice->customer_mobile && $invoice->customer_mobile != $invoice->customer_phone)<strong>Mobile:</strong> {{ $invoice->customer_mobile }}<br>@endif
@@ -149,6 +152,8 @@
             <strong>Invoice Date:</strong> {{ $invoice->invoice_date }}<br>
             <strong>Due Date:</strong> {{ $invoice->due_date ?? 'Upon Receipt' }}<br>
             @if($invoice->po_number)<strong>PO #:</strong> {{ $invoice->po_number }}<br>@endif
+            @php $pmLabels = ['30'=>'Bank Transfer','10'=>'Cash','48'=>'Bank Card','42'=>'Bank Account']; @endphp
+            @if($invoice->payment_means_code ?? null)<strong>Payment Method:</strong> {{ $pmLabels[$invoice->payment_means_code] ?? $invoice->payment_means_code }}<br>@endif
         </td>
     </tr>
 </table>
@@ -159,23 +164,32 @@
 <table class="items">
     <thead>
         <tr>
-            <th style="width:30px;">#</th>
+            <th style="width:25px;">#</th>
             <th>Description</th>
-            <th class="right" style="width:55px;">Qty</th>
-            <th class="right" style="width:90px;">Unit Price</th>
-            <th class="right" style="width:55px;">VAT %</th>
-            <th class="right" style="width:80px;">VAT Amt</th>
-            <th class="right" style="width:90px;">Total (AED)</th>
+            <th class="right" style="width:40px;">Qty</th>
+            <th class="right" style="width:35px;">UOM</th>
+            <th class="right" style="width:80px;">Unit Price</th>
+            <th class="right" style="width:40px;">VAT %</th>
+            <th class="right" style="width:35px;">Tax Cat.</th>
+            <th class="right" style="width:70px;">VAT Amt</th>
+            <th class="right" style="width:80px;">Total (AED)</th>
         </tr>
     </thead>
     <tbody>
         @foreach($lines as $line)
         <tr>
             <td>{{ $line->line_number }}</td>
-            <td>{{ $line->description }}</td>
+            <td>
+                {{ $line->description }}
+                @if(($line->tax_exemption_reason ?? null) && in_array($line->tax_category_code ?? '', ['E','Z']))
+                    <br><span style="font-size:9px;color:#6b7280;">{{ $line->tax_exemption_reason }}</span>
+                @endif
+            </td>
             <td class="right">{{ number_format($line->quantity, 2) }}</td>
+            <td class="right">{{ $line->unit_of_measure ?? 'PCE' }}</td>
             <td class="right">{{ number_format($line->unit_price, 2) }}</td>
             <td class="right">{{ number_format($line->vat_rate, 0) }}%</td>
+            <td class="right">{{ $line->tax_category_code ?? 'S' }}</td>
             <td class="right">{{ number_format($line->vat_amount, 2) }}</td>
             <td class="right">{{ number_format($line->line_amount + $line->vat_amount, 2) }}</td>
         </tr>
@@ -183,19 +197,19 @@
     </tbody>
     <tfoot>
         <tr>
-            <td colspan="6" class="right">Subtotal</td>
+            <td colspan="8" class="right">Subtotal</td>
             <td class="right">{{ number_format($invoice->subtotal, 2) }}</td>
         </tr>
         <tr>
-            <td colspan="6" class="right">VAT</td>
+            <td colspan="8" class="right">VAT</td>
             <td class="right">{{ number_format($invoice->total_vat_amount, 2) }}</td>
         </tr>
         <tr class="grand-total">
-            <td colspan="6" class="right">TOTAL DUE</td>
+            <td colspan="8" class="right">TOTAL DUE</td>
             <td class="right">AED {{ number_format($invoice->total_amount, 2) }}</td>
         </tr>
         <tr class="words">
-            <td colspan="7"><strong>Total in Words:</strong> {{ amountInWords($invoice->total_amount) }}</td>
+            <td colspan="9"><strong>Total in Words:</strong> {{ amountInWords($invoice->total_amount) }}</td>
         </tr>
     </tfoot>
 </table>
