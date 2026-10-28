@@ -449,7 +449,7 @@ foreach (collect($rows)->where('account_type', 'EXPENSE') as $r) {
         DB::table('user_companies')->insert([
             'user_id'    => auth()->user()->id,
             'company_id' => $companyId,
-            'role'       => 'admin',
+            'role'       => 'ADMIN',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
