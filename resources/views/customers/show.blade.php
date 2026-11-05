@@ -21,6 +21,10 @@
                     class="text-sm border border-gray-200 text-gray-600 px-3 py-1.5 rounded hover:bg-gray-50">
                     ✏️ Edit
                 </a>
+                <a href="/customers/{{ $customer->id }}/statement"
+                    class="text-sm border border-gray-200 text-gray-600 px-3 py-1.5 rounded hover:bg-gray-50">
+                    📄 Statement
+                </a>
                 <a href="/invoices/create?customer_id={{ $customer->id }}"
                     class="text-sm bg-green-700 text-white px-3 py-1.5 rounded hover:bg-green-800">
                     ➕ New Invoice

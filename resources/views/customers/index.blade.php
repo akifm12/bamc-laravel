@@ -49,6 +49,7 @@
                 </td>
                 <td class="px-4 py-2 text-right">
                     <a href="/customers/{{ $c->id }}" class="text-xs text-blue-500 hover:text-blue-700">View →</a>
+                    <a href="/customers/{{ $c->id }}/statement" class="text-xs text-gray-400 hover:text-gray-600 ml-2">Statement</a>
                 </td>
             </tr>
             @empty

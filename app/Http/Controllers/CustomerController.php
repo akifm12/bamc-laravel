@@ -152,6 +152,74 @@ class CustomerController extends Controller
 
         return redirect("/customers/{$id}")->with('success', 'Customer updated.');
     }
+public function statement(Request $request, $id)
+{
+    $companyId = session('company_id');
+    $customer  = DB::table('customers')->where('id', $id)->where('company_id', $companyId)->first();
+    if (!$customer) abort(404);
+
+    $dateFrom = $request->get('date_from', date('Y-01-01'));
+    $dateTo   = $request->get('date_to',   date('Y-m-d'));
+
+    // Opening balance: sum of invoices minus payments before date_from
+    $openingInvoices = DB::table('invoices')
+        ->where('customer_id', $id)->where('company_id', $companyId)
+        ->where('is_deleted', false)->where('invoice_date', '<', $dateFrom)
+        ->sum('total_amount');
+    $openingPayments = DB::table('payments')
+        ->where('customer_id', $id)->where('company_id', $companyId)
+        ->where('is_deleted', false)->where('is_void', false)
+        ->where('payment_date', '<', $dateFrom)
+        ->sum('amount');
+    $openingBalance = $openingInvoices - $openingPayments;
+
+    // Invoices in period
+    $invoices = DB::table('invoices')
+        ->where('customer_id', $id)->where('company_id', $companyId)
+        ->where('is_deleted', false)
+        ->whereBetween('invoice_date', [$dateFrom, $dateTo])
+        ->orderBy('invoice_date')->orderBy('id')
+        ->get()->map(fn($r) => (object)[
+            'date'        => $r->invoice_date,
+            'type'        => 'Invoice',
+            'reference'   => $r->invoice_number,
+            'description' => 'Tax Invoice',
+            'debit'       => $r->total_amount,
+            'credit'      => 0,
+        ]);
+
+    // Payments in period
+    $payments = DB::table('payments')
+        ->where('customer_id', $id)->where('company_id', $companyId)
+        ->where('is_deleted', false)->where('is_void', false)
+        ->whereBetween('payment_date', [$dateFrom, $dateTo])
+        ->orderBy('payment_date')->orderBy('id')
+        ->get()->map(fn($r) => (object)[
+            'date'        => $r->payment_date,
+            'type'        => 'Payment',
+            'reference'   => $r->payment_number,
+            'description' => $r->narration ?? 'Payment Received',
+            'debit'       => 0,
+            'credit'      => $r->amount,
+        ]);
+
+    // Merge and sort by date
+    $transactions = $invoices->concat($payments)
+        ->sortBy('date')->values();
+
+    // Add running balance
+    $running = $openingBalance;
+    foreach ($transactions as $txn) {
+        $running += $txn->debit - $txn->credit;
+        $txn->balance = $running;
+    }
+    $closingBalance = $running;
+
+    return view('customers.statement', compact(
+        'customer', 'transactions', 'openingBalance', 'closingBalance', 'dateFrom', 'dateTo'
+    ));
+}
+
 public function details($id)
 {
     $companyId = session('company_id');
