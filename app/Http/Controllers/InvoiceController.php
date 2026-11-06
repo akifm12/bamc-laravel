@@ -153,26 +153,23 @@ class InvoiceController extends Controller
                 ->first();
         }
 
-			// Derive next number from actual existing invoices for this company/year
-			// This is safe for backdated entries and avoids sequence drift
+			// Company-wide sequential: BAMC_{year}_{seq}
+			$prefix = "BAMC_{$currentYear}_";
 			$lastInvoice = DB::table('invoices')
     			->where('company_id', $companyId)
-    			->whereYear('invoice_date', $currentYear)
+    			->where('invoice_number', 'like', $prefix . '%')
     			->orderBy('id', 'desc')
     			->value('invoice_number');
 
 			if ($lastInvoice) {
-    			// Extract the sequence number from the end of the invoice number
     			preg_match('/(\d+)$/', $lastInvoice, $matches);
     			$nextNum = isset($matches[1]) ? intval($matches[1]) + 1 : 1;
 			} else {
     			$nextNum = 1;
 			}
 
-        $clientNum     = str_pad($customer->client_number ?? '00', 2, '0', STR_PAD_LEFT);
-        $acronym       = $customer->client_acronym ?? 'INV';
         $seqNum        = str_pad($nextNum, 3, '0', STR_PAD_LEFT);
-        $invoiceNumber = "{$acronym} - Invoice No. {$clientNum}_{$currentYear}_{$seqNum}";
+        $invoiceNumber = "BAMC_{$currentYear}_{$seqNum}";
 
         $period = DB::table('accounting_periods')
             ->where('company_id', $companyId)
