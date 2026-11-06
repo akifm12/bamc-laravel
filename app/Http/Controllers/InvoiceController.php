@@ -153,23 +153,25 @@ class InvoiceController extends Controller
                 ->first();
         }
 
-			// Company-wide sequential: BAMC_{year}_{seq}
-			$prefix = "BAMC_{$currentYear}_";
-			$lastInvoice = DB::table('invoices')
-    			->where('company_id', $companyId)
-    			->where('invoice_number', 'like', $prefix . '%')
-    			->orderBy('id', 'desc')
-    			->value('invoice_number');
+        // Per-client sequential: Invoice No. {client_code}_{year}_{seq}
+        $clientCode = str_pad($customer->client_number ?? 0, 2, '0', STR_PAD_LEFT);
+        $prefix     = "Invoice No. {$clientCode}_{$currentYear}_";
+        $lastInvoice = DB::table('invoices')
+            ->where('company_id', $companyId)
+            ->where('customer_id', $request->customer_id)
+            ->where('invoice_number', 'like', $prefix . '%')
+            ->orderBy('id', 'desc')
+            ->value('invoice_number');
 
-			if ($lastInvoice) {
-    			preg_match('/(\d+)$/', $lastInvoice, $matches);
-    			$nextNum = isset($matches[1]) ? intval($matches[1]) + 1 : 1;
-			} else {
-    			$nextNum = 1;
-			}
+        if ($lastInvoice) {
+            preg_match('/(\d+)$/', $lastInvoice, $matches);
+            $nextNum = isset($matches[1]) ? intval($matches[1]) + 1 : 1;
+        } else {
+            $nextNum = 1;
+        }
 
         $seqNum        = str_pad($nextNum, 3, '0', STR_PAD_LEFT);
-        $invoiceNumber = "BAMC_{$currentYear}_{$seqNum}";
+        $invoiceNumber = "Invoice No. {$clientCode}_{$currentYear}_{$seqNum}";
 
         $period = DB::table('accounting_periods')
             ->where('company_id', $companyId)
