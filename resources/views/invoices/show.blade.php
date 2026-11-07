@@ -81,30 +81,19 @@
                     @endif
                 </div>
 
-                @if($invoice->einvoice_status)
+                @if($invoice->einvoice_status && strtolower($invoice->einvoice_status) === 'submitted')
                 <div class="mt-3 flex flex-col items-end gap-1">
                     @php
                         $eStatus = strtolower($invoice->einvoice_status);
-                        $eColor  = match($eStatus) {
-                            'submitted' => 'bg-green-100 text-green-700',
-                            'failed'    => 'bg-red-100 text-red-700',
-                            default     => 'bg-gray-100 text-gray-500',
-                        };
+                        $eColor  = 'bg-green-100 text-green-700';
                     @endphp
                     <span class="text-xs px-2 py-0.5 rounded-full {{ $eColor }}">
-                        E-Invoice: {{ strtoupper($eStatus) }}
-                        @if($eStatus === 'submitted' && $invoice->einvoice_submitted_at)
+                        E-Invoice: SUBMITTED
+                        @if($invoice->einvoice_submitted_at)
                             &middot; {{ \Carbon\Carbon::parse($invoice->einvoice_submitted_at)->format('d M Y') }}
                         @endif
                     </span>
-                    @if($eStatus === 'failed')
-                        <p class="text-xs text-red-500 max-w-xs text-right">{{ $invoice->einvoice_error }}</p>
-                        <form method="POST" action="/invoices/{{ $invoice->id }}/retry-einvoice">
-                            @csrf
-                            <button style="background:#ea580c;color:#fff;font-size:0.75rem;padding:0.25rem 0.5rem;border-radius:0.25rem;border:none;cursor:pointer;">
-                                Retry E-Invoice
-                            </button>
-                        </form>
+                    @if(false){{-- e-invoice failure UI hidden until provider is live --}}
                     @endif
                 </div>
                 @endif
