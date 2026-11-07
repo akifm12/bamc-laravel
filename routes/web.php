@@ -142,6 +142,10 @@ Route::middleware(['auth'])->group(function () {
 	Route::get('/payroll/employees/{id}', [PayrollController::class, 'showEmployee'])->name('payroll.employees.show');
 	Route::get('/payroll/run', [PayrollController::class, 'runForm'])->name('payroll.run');
 	Route::post('/payroll/run', [PayrollController::class, 'processPayroll'])->name('payroll.process');
+	Route::get('/payroll/directors/create', [PayrollController::class, 'directorPaymentForm'])->name('payroll.directors.create');
+	Route::post('/payroll/directors', [PayrollController::class, 'storeDirectorPayment'])->name('payroll.directors.store');
+	Route::post('/payroll/directors/{id}/post', [PayrollController::class, 'postDirectorPayment'])->name('payroll.directors.post');
+	Route::delete('/payroll/directors/{id}', [PayrollController::class, 'deleteDirectorPayment'])->name('payroll.directors.delete');
 	Route::get('/payroll/{id}', [PayrollController::class, 'showRun'])->name('payroll.show');
 
 	Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');

@@ -24,7 +24,13 @@ class PayrollController extends Controller
             ->whereRaw("is_deleted = false")
             ->count();
 
-        return view('payroll.index', compact('runs', 'totalEmployees'));
+        $directorPayments = DB::table('director_payments')
+            ->where('company_id', $companyId)
+            ->where('is_deleted', false)
+            ->orderBy('pay_date', 'desc')
+            ->get();
+
+        return view('payroll.index', compact('runs', 'totalEmployees', 'directorPayments'));
     }
 
     public function employees()
@@ -303,6 +309,181 @@ class PayrollController extends Controller
         });
 
         return redirect('/payroll')->with('success', 'Payroll run ' . $runNumber . ' created for ' . $employees->count() . ' employees.');
+    }
+
+    public function directorPaymentForm()
+    {
+        $companyId = session('company_id');
+        if (!$companyId) return redirect('/dashboard')->with('error', 'Please select a company.');
+
+        // Last remuneration amounts per director for suggestion
+        $lastAmounts = DB::table('director_payments')
+            ->where('company_id', $companyId)
+            ->where('is_deleted', false)
+            ->where('payment_type', 'remuneration')
+            ->orderBy('pay_date', 'desc')
+            ->get()
+            ->groupBy('director_name')
+            ->map(fn($rows) => $rows->first()->amount);
+
+        $expenseAccounts = DB::table('accounts')
+            ->where('company_id', $companyId)
+            ->where('account_type', 'EXPENSE')
+            ->where('is_active', true)
+            ->orderBy('code')
+            ->get();
+
+        $bankAccounts = DB::table('accounts')
+            ->where('company_id', $companyId)
+            ->where('account_type', 'ASSET')
+            ->where('is_active', true)
+            ->where('code', 'like', 'CA-%')
+            ->orderBy('code')
+            ->get();
+
+        return view('payroll.director_form', compact('lastAmounts', 'expenseAccounts', 'bankAccounts'));
+    }
+
+    public function storeDirectorPayment(Request $request)
+    {
+        $companyId = session('company_id');
+        $request->validate([
+            'director_name'       => 'required|string',
+            'payment_type'        => 'required|in:remuneration,bonus',
+            'amount'              => 'required|numeric|min:0.01',
+            'pay_date'            => 'required|date',
+            'expense_account_id'  => 'required|integer',
+            'bank_account_id'     => 'required|integer',
+        ]);
+
+        $count     = DB::table('director_payments')->where('company_id', $companyId)->count() + 1;
+        $runNumber = 'DR-' . date('Y', strtotime($request->pay_date)) . '-' . str_pad($count, 3, '0', STR_PAD_LEFT);
+
+        DB::table('director_payments')->insert([
+            'company_id'         => $companyId,
+            'director_name'      => $request->director_name,
+            'payment_type'       => $request->payment_type,
+            'amount'             => $request->amount,
+            'pay_date'           => $request->pay_date,
+            'period_month'       => date('n', strtotime($request->pay_date)),
+            'period_year'        => date('Y', strtotime($request->pay_date)),
+            'notes'              => $request->notes,
+            'expense_account_id' => $request->expense_account_id,
+            'bank_account_id'    => $request->bank_account_id,
+            'run_number'         => $runNumber,
+            'status'             => 'draft',
+            'is_deleted'         => false,
+            'created_by_id'      => auth()->user()->id,
+            'created_at'         => now(),
+            'updated_at'         => now(),
+        ]);
+
+        return redirect('/payroll?tab=directors')->with('success', "{$runNumber} saved as draft.");
+    }
+
+    public function postDirectorPayment($id)
+    {
+        $companyId = session('company_id');
+        $payment   = DB::table('director_payments')
+            ->where('id', $id)
+            ->where('company_id', $companyId)
+            ->where('status', 'draft')
+            ->where('is_deleted', false)
+            ->first();
+
+        if (!$payment) return back()->with('error', 'Payment not found or already posted.');
+
+        $period = DB::table('accounting_periods')
+            ->where('company_id', $companyId)
+            ->where('start_date', '<=', $payment->pay_date)
+            ->where('end_date', '>=', $payment->pay_date)
+            ->first();
+
+        if (!$period) return back()->with('error', 'No accounting period for ' . $payment->pay_date . '. Create a fiscal year first.');
+
+        DB::transaction(function () use ($companyId, $payment, $period) {
+            $jeYear   = date('Y', strtotime($payment->pay_date));
+            $jeCount  = DB::table('journal_entries')->where('company_id', $companyId)->whereYear('entry_date', $jeYear)->count() + 1;
+            $jeNumber = 'JE-' . $jeYear . '-' . str_pad($jeCount, 5, '0', STR_PAD_LEFT);
+
+            $typeLabel = ucfirst($payment->payment_type);
+            $desc      = "Director {$typeLabel} - {$payment->director_name} ({$payment->run_number})";
+
+            $jeId = DB::table('journal_entries')->insertGetId([
+                'company_id'    => $companyId,
+                'period_id'     => $period->id,
+                'entry_number'  => $jeNumber,
+                'entry_date'    => $payment->pay_date,
+                'journal_type'  => 'PAYROLL',
+                'status'        => 'POSTED',
+                'description'   => $desc,
+                'reference'     => $payment->run_number,
+                'total_debit'   => $payment->amount,
+                'total_credit'  => $payment->amount,
+                'currency_code' => 'AED',
+                'exchange_rate' => 1.0,
+                'is_reversal'   => false,
+                'is_recurring'  => false,
+                'is_deleted'    => false,
+                'created_by_id' => auth()->user()->id,
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ]);
+
+            // DR Remuneration Expense
+            DB::table('journal_lines')->insert([
+                'journal_entry_id' => $jeId,
+                'company_id'       => $companyId,
+                'account_id'       => $payment->expense_account_id,
+                'line_number'      => 1,
+                'description'      => $desc,
+                'debit_amount'     => $payment->amount,
+                'credit_amount'    => 0,
+                'currency_code'    => 'AED',
+                'exchange_rate'    => 1.0,
+                'is_reconciled'    => false,
+            ]);
+
+            // CR Bank
+            DB::table('journal_lines')->insert([
+                'journal_entry_id' => $jeId,
+                'company_id'       => $companyId,
+                'account_id'       => $payment->bank_account_id,
+                'line_number'      => 2,
+                'description'      => $desc,
+                'debit_amount'     => 0,
+                'credit_amount'    => $payment->amount,
+                'currency_code'    => 'AED',
+                'exchange_rate'    => 1.0,
+                'is_reconciled'    => false,
+            ]);
+
+            // Fix sequence drift
+            DB::statement("SELECT setval('journal_entries_id_seq', (SELECT MAX(id) FROM journal_entries))");
+            DB::statement("SELECT setval('journal_lines_id_seq', (SELECT MAX(id) FROM journal_lines))");
+
+            DB::table('director_payments')->where('id', $payment->id)->update([
+                'journal_entry_id' => $jeId,
+                'status'           => 'posted',
+                'updated_at'       => now(),
+            ]);
+        });
+
+        return redirect('/payroll?tab=directors')->with('success', "Payment {$payment->run_number} posted to journal.");
+    }
+
+    public function deleteDirectorPayment($id)
+    {
+        $companyId = session('company_id');
+        $rows = DB::table('director_payments')
+            ->where('id', $id)
+            ->where('company_id', $companyId)
+            ->where('status', 'draft')
+            ->where('is_deleted', false)
+            ->update(['is_deleted' => true, 'updated_at' => now()]);
+
+        if (!$rows) return back()->with('error', 'Cannot delete — not found or already posted.');
+        return redirect('/payroll?tab=directors')->with('success', 'Draft payment deleted.');
     }
 
     public function showRun($id)
