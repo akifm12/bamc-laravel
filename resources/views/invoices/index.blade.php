@@ -9,7 +9,7 @@
 </div>
 
 <!-- Filters -->
-<form method="GET" action="/invoices" class="bg-white rounded-lg border border-gray-200 p-4 mb-4 flex gap-3 items-end">
+<form method="GET" action="/invoices" class="bg-white rounded-lg border border-gray-200 p-4 mb-4 flex flex-wrap gap-3 items-end">
     <div>
         <label class="text-xs text-gray-500 block mb-1">From</label>
         <input type="date" name="date_from" value="{{ $dateFrom }}"
@@ -23,10 +23,22 @@
     <div>
         <label class="text-xs text-gray-500 block mb-1">Status</label>
         <select name="status" class="border border-gray-200 rounded px-3 py-1.5 text-sm">
-            <option value="all"     {{ $status == 'all'     ? 'selected' : '' }}>All</option>
-            <option value="draft"   {{ $status == 'draft'   ? 'selected' : '' }}>Draft</option>
-            <option value="approved"{{ $status == 'approved'? 'selected' : '' }}>Approved</option>
-            <option value="void"    {{ $status == 'void'    ? 'selected' : '' }}>Void</option>
+            <option value="all"      {{ $status == 'all'      ? 'selected' : '' }}>All</option>
+            <option value="draft"    {{ $status == 'draft'    ? 'selected' : '' }}>Draft</option>
+            <option value="approved" {{ $status == 'approved' ? 'selected' : '' }}>Approved</option>
+            <option value="overdue"  {{ $status == 'overdue'  ? 'selected' : '' }}>Overdue</option>
+            <option value="paid"     {{ $status == 'paid'     ? 'selected' : '' }}>Paid</option>
+            <option value="partial"  {{ $status == 'partial'  ? 'selected' : '' }}>Partial</option>
+            <option value="void"     {{ $status == 'void'     ? 'selected' : '' }}>Void</option>
+        </select>
+    </div>
+    <div>
+        <label class="text-xs text-gray-500 block mb-1">Customer</label>
+        <select name="customer_id" class="border border-gray-200 rounded px-3 py-1.5 text-sm max-w-xs">
+            <option value="all" {{ $customerId == 'all' ? 'selected' : '' }}>All Customers</option>
+            @foreach($customers as $c)
+                <option value="{{ $c->id }}" {{ $customerId == $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
+            @endforeach
         </select>
     </div>
     <button type="submit" class="bg-gray-700 text-white text-sm px-4 py-1.5 rounded hover:bg-gray-800">Search</button>
@@ -69,7 +81,10 @@
                 $status = strtolower($inv->status ?? 'draft');
                 $statusColor = match($status) {
                     'approved' => 'bg-green-100 text-green-700',
+                    'paid'     => 'bg-emerald-100 text-emerald-700',
+                    'partial'  => 'bg-blue-100 text-blue-700',
                     'draft'    => 'bg-yellow-100 text-yellow-700',
+                    'overdue'  => 'bg-red-100 text-red-700',
                     'void'     => 'bg-gray-100 text-gray-500',
                     default    => 'bg-gray-100 text-gray-500',
                 };

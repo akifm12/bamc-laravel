@@ -17,9 +17,10 @@ class InvoiceController extends Controller
         $companyId = session('company_id');
         if (!$companyId) return redirect('/dashboard')->with('error', 'Please select a company.');
 
-        $dateFrom = $request->get('date_from', date('Y-01-01'));
-        $dateTo   = $request->get('date_to',   date('Y-m-d'));
-        $status   = $request->get('status', 'all');
+        $dateFrom   = $request->get('date_from', date('Y-01-01'));
+        $dateTo     = $request->get('date_to',   date('Y-m-d'));
+        $status     = $request->get('status', 'all');
+        $customerId = $request->get('customer_id', 'all');
 
         $query = DB::table('invoices')
             ->join('customers', 'customers.id', '=', 'invoices.customer_id')
@@ -33,11 +34,16 @@ class InvoiceController extends Controller
             $query->where('invoices.status', strtoupper($status));
         }
 
+        if ($customerId !== 'all') {
+            $query->where('invoices.customer_id', $customerId);
+        }
+
+        $customers   = DB::table('customers')->where('company_id', $companyId)->where('is_active', true)->orderBy('name')->get();
         $invoices    = $query->get();
         $totalAmount = $invoices->sum('total_amount');
         $totalDue    = $invoices->sum('amount_due');
 
-        return view('invoices.index', compact('invoices', 'dateFrom', 'dateTo', 'status', 'totalAmount', 'totalDue'));
+        return view('invoices.index', compact('invoices', 'dateFrom', 'dateTo', 'status', 'customerId', 'customers', 'totalAmount', 'totalDue'));
     }
 
     public function create(Request $request)
