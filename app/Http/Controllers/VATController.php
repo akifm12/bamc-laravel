@@ -121,17 +121,54 @@ class VATController extends Controller
             'payment_date' => 'required|date',
         ]);
 
+        $vatReturn = DB::table('vat_returns')->where('id', $id)->where('company_id', $companyId)->first();
+        if (!$vatReturn) abort(404);
+
+        $payDate    = $request->payment_date;
+        $amount     = (float) $request->amount_paid;
+        $jeYear     = date('Y', strtotime($payDate));
+        $count      = DB::table('journal_entries')->where('company_id', $companyId)->whereYear('entry_date', $jeYear)->count() + 1;
+        $jeNumber   = 'JE-' . $jeYear . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
+        $period     = DB::table('accounting_periods')
+                        ->where('company_id', $companyId)
+                        ->whereDate('start_date', '<=', $payDate)
+                        ->whereDate('end_date', '>=', $payDate)
+                        ->first();
+
+        $jeId = DB::table('journal_entries')->insertGetId([
+            'company_id'   => $companyId,
+            'entry_number' => $jeNumber,
+            'entry_date'   => $payDate,
+            'status'       => 'POSTED',
+            'journal_type' => 'BANK_PAYMENT',
+            'description'  => 'VAT Payment to FTA - ' . $vatReturn->return_number,
+            'currency_code' => 'AED',
+            'exchange_rate' => 1.0,
+            'total_debit'  => $amount,
+            'total_credit' => $amount,
+            'period_id'    => $period?->id,
+            'is_deleted'   => false,
+            'created_at'   => now(),
+            'updated_at'   => now(),
+        ]);
+
+        DB::table('journal_lines')->insert([
+            ['journal_entry_id' => $jeId, 'company_id' => $companyId, 'account_id' => 674,  'line_number' => 1, 'description' => 'Output VAT - ' . $vatReturn->return_number, 'debit_amount' => $amount, 'credit_amount' => 0],
+            ['journal_entry_id' => $jeId, 'company_id' => $companyId, 'account_id' => 647,  'line_number' => 2, 'description' => 'RAKBANK Current Account', 'debit_amount' => 0, 'credit_amount' => $amount],
+        ]);
+
         DB::table('vat_returns')
             ->where('id', $id)
             ->where('company_id', $companyId)
             ->update([
-                'amount_paid'  => $request->amount_paid,
-                'payment_date' => $request->payment_date,
-                'status'       => 'PAID',
-                'updated_at'   => now(),
+                'amount_paid'      => $amount,
+                'payment_date'     => $payDate,
+                'status'           => 'PAID',
+                'journal_entry_id' => $jeId,
+                'updated_at'       => now(),
             ]);
 
-        return redirect('/vat')->with('success', 'Payment recorded successfully.');
+        return redirect('/vat')->with('success', "Payment recorded. Journal entry {$jeNumber} created.");
     }
 
     private function getCurrentPeriod(int $cycleStart): array

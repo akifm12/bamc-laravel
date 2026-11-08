@@ -181,6 +181,9 @@
                         @if($r?->payment_date)
                             <br><span class="text-gray-400">{{ \Carbon\Carbon::parse($r->payment_date)->format('d M Y') }}</span>
                         @endif
+                        @if($r?->journal_entry_id)
+                            <br><a href="/journals/{{ $r->journal_entry_id }}" class="text-blue-500 hover:text-blue-700">JE →</a>
+                        @endif
                     @else
                         -
                     @endif
