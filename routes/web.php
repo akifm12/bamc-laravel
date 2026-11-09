@@ -200,7 +200,9 @@ Route::middleware(['auth'])->group(function () {
 	Route::get('/reports/ar-ledger', [ReportController::class, 'arLedger'])->name('reports.ar_ledger');
 	Route::get('/reports/vat-ledger', [ReportController::class, 'vatLedger'])->name('reports.vat_ledger');
 	Route::get('/customers/{id}/details', [CustomerController::class, 'details'])->name('customers.details');
-	Route::get('/customers/{id}/statement', [CustomerController::class, 'statement'])->name('customers.statement');
+	Route::get('/customers/{id}/statement',     [CustomerController::class, 'statement'])->name('customers.statement');
+	Route::get('/customers/{id}/statement/pdf', [CustomerController::class, 'statementPdf'])->name('customers.statement.pdf');
+	Route::get('/customers/{id}/statement/csv', [CustomerController::class, 'statementCsv'])->name('customers.statement.csv');
 	Route::post('/invoices/{id}/send-email', [InvoiceController::class, 'sendEmail'])->name('invoices.send_email');
 	Route::get('/pending-approval', fn() => view('auth.pending-approval'))->name('pending-approval');
 

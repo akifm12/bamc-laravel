@@ -161,77 +161,129 @@ public function statement(Request $request, $id)
     $dateFrom = $request->get('date_from', date('Y-01-01'));
     $dateTo   = $request->get('date_to',   date('Y-m-d'));
 
-    // Opening balance: invoices before period minus payments before period
+    [$transactions, $openingBalance, $closingBalance] = $this->buildStatement($id, $companyId, $dateFrom, $dateTo);
+
+    return view('customers.statement', compact(
+        'customer', 'transactions', 'openingBalance', 'closingBalance', 'dateFrom', 'dateTo'
+    ));
+}
+
+public function statementPdf(Request $request, $id)
+{
+    $companyId = session('company_id');
+    $customer  = DB::table('customers')->where('id', $id)->where('company_id', $companyId)->first();
+    if (!$customer) abort(404);
+
+    $dateFrom = $request->get('date_from', date('Y-01-01'));
+    $dateTo   = $request->get('date_to',   date('Y-m-d'));
+    $company  = DB::table('companies')->find($companyId);
+
+    [$transactions, $openingBalance, $closingBalance] = $this->buildStatement($id, $companyId, $dateFrom, $dateTo);
+
+    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('customers.statement_pdf', compact(
+        'customer', 'company', 'transactions', 'openingBalance', 'closingBalance', 'dateFrom', 'dateTo'
+    ))->setPaper('a4', 'portrait');
+
+    $filename = 'Statement_' . preg_replace('/[^A-Za-z0-9]/', '_', $customer->name) . '_' . $dateFrom . '_' . $dateTo . '.pdf';
+    return $pdf->download($filename);
+}
+
+public function statementCsv(Request $request, $id)
+{
+    $companyId = session('company_id');
+    $customer  = DB::table('customers')->where('id', $id)->where('company_id', $companyId)->first();
+    if (!$customer) abort(404);
+
+    $dateFrom = $request->get('date_from', date('Y-01-01'));
+    $dateTo   = $request->get('date_to',   date('Y-m-d'));
+
+    [$transactions, $openingBalance, $closingBalance] = $this->buildStatement($id, $companyId, $dateFrom, $dateTo);
+
+    $filename = 'Statement_' . preg_replace('/[^A-Za-z0-9]/', '_', $customer->name) . '_' . $dateFrom . '_' . $dateTo . '.csv';
+
+    $headers = [
+        'Content-Type'        => 'text/csv',
+        'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+    ];
+
+    $callback = function () use ($transactions, $openingBalance, $closingBalance, $dateFrom, $customer) {
+        $f = fopen('php://output', 'w');
+        fputcsv($f, ['Statement of Account']);
+        fputcsv($f, ['Customer:', $customer->name]);
+        fputcsv($f, ['Period:', $dateFrom . ' to ' . request()->get('date_to', date('Y-m-d'))]);
+        fputcsv($f, []);
+        fputcsv($f, ['Date', 'Type', 'Reference', 'Description', 'Debit (AED)', 'Credit (AED)', 'Balance (AED)']);
+        fputcsv($f, [$dateFrom, '', '', 'Opening Balance', '', '', number_format($openingBalance, 2)]);
+        foreach ($transactions as $txn) {
+            fputcsv($f, [
+                $txn->date,
+                $txn->type,
+                $txn->reference,
+                $txn->description,
+                $txn->debit > 0 ? number_format($txn->debit, 2) : '',
+                $txn->credit > 0 ? number_format($txn->credit, 2) : '',
+                number_format($txn->balance, 2),
+            ]);
+        }
+        fputcsv($f, []);
+        fputcsv($f, ['', '', '', 'Closing Balance', '', '', number_format($closingBalance, 2)]);
+        fclose($f);
+    };
+
+    return response()->stream($callback, 200, $headers);
+}
+
+private function buildStatement(int $customerId, int $companyId, string $dateFrom, string $dateTo): array
+{
     $openingInvoices = DB::table('invoices')
-        ->where('customer_id', $id)->where('company_id', $companyId)
-        ->where('is_deleted', false)
-        ->whereNotIn('status', ['VOID', 'DRAFT'])
+        ->where('customer_id', $customerId)->where('company_id', $companyId)
+        ->where('is_deleted', false)->whereNotIn('status', ['VOID', 'DRAFT'])
         ->where('invoice_date', '<', $dateFrom)
         ->sum('total_amount');
 
     $openingPayments = DB::table('journal_entries as je')
         ->join('invoices as i', 'i.invoice_number', '=', 'je.reference')
-        ->where('i.customer_id', $id)
-        ->where('je.company_id', $companyId)
-        ->where('je.journal_type', 'BANK_RECEIPT')
-        ->where('je.status', 'POSTED')
-        ->where('je.is_deleted', false)
-        ->where('je.entry_date', '<', $dateFrom)
+        ->where('i.customer_id', $customerId)->where('je.company_id', $companyId)
+        ->where('je.journal_type', 'BANK_RECEIPT')->where('je.status', 'POSTED')
+        ->where('je.is_deleted', false)->where('je.entry_date', '<', $dateFrom)
         ->sum('je.total_credit');
 
     $openingBalance = $openingInvoices - $openingPayments;
 
-    // Invoices in period
     $invoices = DB::table('invoices')
-        ->where('customer_id', $id)->where('company_id', $companyId)
-        ->where('is_deleted', false)
-        ->whereNotIn('status', ['VOID', 'DRAFT'])
+        ->where('customer_id', $customerId)->where('company_id', $companyId)
+        ->where('is_deleted', false)->whereNotIn('status', ['VOID', 'DRAFT'])
         ->whereBetween('invoice_date', [$dateFrom, $dateTo])
         ->orderBy('invoice_date')->orderBy('id')
         ->get()->map(fn($r) => (object)[
-            'date'        => $r->invoice_date,
-            'type'        => 'Invoice',
-            'reference'   => $r->invoice_number,
-            'description' => 'Tax Invoice',
-            'debit'       => $r->total_amount,
-            'credit'      => 0,
+            'date' => $r->invoice_date, 'type' => 'Invoice',
+            'reference' => $r->invoice_number, 'description' => 'Tax Invoice',
+            'debit' => $r->total_amount, 'credit' => 0,
         ]);
 
-    // Payments in period — sourced from BANK_RECEIPT journal entries linked via invoice reference
     $payments = DB::table('journal_entries as je')
         ->join('invoices as i', 'i.invoice_number', '=', 'je.reference')
-        ->where('i.customer_id', $id)
-        ->where('je.company_id', $companyId)
-        ->where('je.journal_type', 'BANK_RECEIPT')
-        ->where('je.status', 'POSTED')
-        ->where('je.is_deleted', false)
-        ->whereBetween('je.entry_date', [$dateFrom, $dateTo])
-        ->select('je.entry_date as payment_date', 'je.entry_number', 'je.description', 'je.total_credit as amount', 'i.invoice_number')
+        ->where('i.customer_id', $customerId)->where('je.company_id', $companyId)
+        ->where('je.journal_type', 'BANK_RECEIPT')->where('je.status', 'POSTED')
+        ->where('je.is_deleted', false)->whereBetween('je.entry_date', [$dateFrom, $dateTo])
+        ->select('je.entry_date as payment_date', 'je.entry_number', 'je.description', 'je.total_credit as amount')
         ->orderBy('je.entry_date')->orderBy('je.id')
         ->get()->map(fn($r) => (object)[
-            'date'        => $r->payment_date,
-            'type'        => 'Payment',
-            'reference'   => $r->entry_number,
+            'date' => $r->payment_date, 'type' => 'Payment',
+            'reference' => $r->entry_number,
             'description' => $r->description ?? 'Payment Received',
-            'debit'       => 0,
-            'credit'      => $r->amount,
+            'debit' => 0, 'credit' => $r->amount,
         ]);
 
-    // Merge and sort by date
-    $transactions = $invoices->concat($payments)
-        ->sortBy('date')->values();
+    $transactions = $invoices->concat($payments)->sortBy('date')->values();
 
-    // Add running balance
     $running = $openingBalance;
     foreach ($transactions as $txn) {
         $running += $txn->debit - $txn->credit;
         $txn->balance = $running;
     }
-    $closingBalance = $running;
 
-    return view('customers.statement', compact(
-        'customer', 'transactions', 'openingBalance', 'closingBalance', 'dateFrom', 'dateTo'
-    ));
+    return [$transactions, $openingBalance, $running];
 }
 
 public function details($id)

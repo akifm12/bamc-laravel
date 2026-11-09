@@ -29,11 +29,17 @@
         </button>
         <a href="/customers/{{ $customer->id }}"
             class="text-sm text-gray-500 px-3 py-1.5 hover:text-gray-700">← Back</a>
-        <a href="/customers/{{ $customer->id }}/statement?date_from={{ $dateFrom }}&date_to={{ $dateTo }}&print=1"
-            onclick="window.print(); return false;"
-            class="ml-auto text-sm text-gray-500 border border-gray-200 px-3 py-1.5 rounded hover:bg-gray-50">
-            🖨 Print
-        </a>
+        <div class="ml-auto flex gap-2">
+            <a href="/customers/{{ $customer->id }}/statement/csv?date_from={{ $dateFrom }}&date_to={{ $dateTo }}"
+                class="text-sm text-gray-600 border border-gray-200 px-3 py-1.5 rounded hover:bg-gray-50 flex items-center gap-1">
+                ⬇ CSV
+            </a>
+            <a href="/customers/{{ $customer->id }}/statement/pdf?date_from={{ $dateFrom }}&date_to={{ $dateTo }}"
+                target="_blank"
+                class="text-sm bg-green-700 text-white px-3 py-1.5 rounded hover:bg-green-800 flex items-center gap-1">
+                ⬇ PDF
+            </a>
+        </div>
     </form>
 
     <!-- Header -->
