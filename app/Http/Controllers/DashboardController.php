@@ -228,6 +228,18 @@ class DashboardController extends Controller
             ->orderByDesc('invoices.invoice_date')
             ->limit(6)->get();
 
+        // ── Outstanding invoices (unpaid, oldest due first) ────────────────────
+        $outstandingInvoices = DB::table('invoices')
+            ->join('customers', 'customers.id', '=', 'invoices.customer_id')
+            ->where('invoices.company_id', $companyId)
+            ->where('invoices.is_deleted', false)
+            ->whereNotIn('invoices.status', ['PAID', 'VOID'])
+            ->select('invoices.id', 'invoices.invoice_number', 'invoices.total_amount',
+                     'invoices.status', 'invoices.due_date',
+                     'customers.name as customer_name')
+            ->orderBy('invoices.due_date')
+            ->limit(7)->get();
+
         // ── Recent bills ───────────────────────────────────────────────────────────
         $recentBills = DB::table('bills')
             ->join('vendors', 'vendors.id', '=', 'bills.vendor_id')
@@ -268,7 +280,7 @@ class DashboardController extends Controller
             'cumulRev', 'cumulExp', 'cumulNet',
             'lyRevTotal', 'lyExpTotal', 'lyNetTotal',
             'cashMonthlyBals', 'lyDecBalance',
-            'recentInvoices', 'recentBills',
+            'recentInvoices', 'recentBills', 'outstandingInvoices',
             'vatCollected', 'vatReclaimable', 'vatNetDue', 'vatPeriod',
             'estimatedCT',
             'year', 'month',

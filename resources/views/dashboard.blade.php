@@ -417,16 +417,17 @@ $dCash = dualSparkData($cashMonthlyBals, $lyDecBalance, $spW, $spH);
 
 </div>
 
-{{-- ── Bottom: Recent Invoices + Bills ──────────────────────────────────── --}}
-<div class="grid grid-cols-2 gap-4">
+{{-- ── Bottom: Recent Invoices · Recent Bills · Outstanding ─────────────── --}}
+<div class="grid grid-cols-3 gap-4">
 
+    {{-- Recent Invoices --}}
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div class="px-5 py-3 flex items-center justify-between border-b border-gray-50">
+        <div class="px-4 py-3 flex items-center justify-between border-b border-gray-50">
             <div class="flex items-center gap-2">
                 <svg class="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 <span class="section-label">Recent Invoices</span>
             </div>
-            <a href="/invoices" class="text-xs text-blue-500">View all →</a>
+            <a href="/invoices" class="text-xs text-blue-500">All →</a>
         </div>
         @if($recentInvoices->count())
         <table class="w-full">
@@ -439,12 +440,12 @@ $dCash = dualSparkData($cashMonthlyBals, $lyDecBalance, $spW, $spH);
                 $lc  = $isOvd ? 'text-red-500' : match($inv->status){ 'PAID'=>'text-green-600','SENT'=>'text-blue-500','DRAFT'=>'text-gray-400',default=>'text-yellow-600' };
             @endphp
             <tr class="inv-row border-b border-gray-50 last:border-0">
-                <td class="pl-5 pr-2 py-2.5 w-5"><span class="inline-block w-1.5 h-1.5 rounded-full {{ $dot }}"></span></td>
-                <td class="py-2.5 pr-3">
-                    <a href="/invoices/{{ $inv->id }}" class="text-xs font-semibold text-gray-700 hover:text-blue-600">{{ $inv->invoice_number }}</a>
-                    <p class="text-xs text-gray-400 truncate" style="max-width:120px">{{ $inv->customer_name }}</p>
+                <td class="pl-4 pr-2 py-2.5 w-4"><span class="inline-block w-1.5 h-1.5 rounded-full {{ $dot }}"></span></td>
+                <td class="py-2.5 pr-2 min-w-0">
+                    <a href="/invoices/{{ $inv->id }}" class="text-xs font-semibold text-gray-700 hover:text-blue-600 block truncate" style="max-width:110px">{{ $inv->invoice_number }}</a>
+                    <p class="text-xs text-gray-400 truncate" style="max-width:110px">{{ $inv->customer_name }}</p>
                 </td>
-                <td class="py-2.5 pr-5 text-right whitespace-nowrap">
+                <td class="py-2.5 pr-4 text-right whitespace-nowrap">
                     <p class="text-xs font-semibold text-gray-700">{{ number_format($inv->total_amount,0) }}</p>
                     <p class="text-xs {{ $lc }}">{{ $lbl }}</p>
                 </td>
@@ -457,13 +458,14 @@ $dCash = dualSparkData($cashMonthlyBals, $lyDecBalance, $spW, $spH);
         @endif
     </div>
 
+    {{-- Recent Bills --}}
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div class="px-5 py-3 flex items-center justify-between border-b border-gray-50">
+        <div class="px-4 py-3 flex items-center justify-between border-b border-gray-50">
             <div class="flex items-center gap-2">
                 <svg class="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
                 <span class="section-label">Recent Bills</span>
             </div>
-            <a href="/bills" class="text-xs text-blue-500">View all →</a>
+            <a href="/bills" class="text-xs text-blue-500">All →</a>
         </div>
         @if($recentBills->count())
         <table class="w-full">
@@ -476,12 +478,12 @@ $dCash = dualSparkData($cashMonthlyBals, $lyDecBalance, $spW, $spH);
                 $lc  = $isOvd ? 'text-red-500' : match($bill->status){ 'PAID'=>'text-green-600','DRAFT'=>'text-gray-400',default=>'text-yellow-600' };
             @endphp
             <tr class="inv-row border-b border-gray-50 last:border-0">
-                <td class="pl-5 pr-2 py-2.5 w-5"><span class="inline-block w-1.5 h-1.5 rounded-full {{ $dot }}"></span></td>
-                <td class="py-2.5 pr-3">
-                    <a href="/bills/{{ $bill->id }}" class="text-xs font-semibold text-gray-700 hover:text-blue-600">{{ $bill->bill_number }}</a>
-                    <p class="text-xs text-gray-400 truncate" style="max-width:120px">{{ $bill->vendor_name }}</p>
+                <td class="pl-4 pr-2 py-2.5 w-4"><span class="inline-block w-1.5 h-1.5 rounded-full {{ $dot }}"></span></td>
+                <td class="py-2.5 pr-2 min-w-0">
+                    <a href="/bills/{{ $bill->id }}" class="text-xs font-semibold text-gray-700 hover:text-blue-600 block truncate" style="max-width:110px">{{ $bill->bill_number }}</a>
+                    <p class="text-xs text-gray-400 truncate" style="max-width:110px">{{ $bill->vendor_name }}</p>
                 </td>
-                <td class="py-2.5 pr-5 text-right whitespace-nowrap">
+                <td class="py-2.5 pr-4 text-right whitespace-nowrap">
                     <p class="text-xs font-semibold text-gray-700">{{ number_format($bill->total_amount,0) }}</p>
                     <p class="text-xs {{ $lc }}">{{ $lbl }}</p>
                 </td>
@@ -491,6 +493,47 @@ $dCash = dualSparkData($cashMonthlyBals, $lyDecBalance, $spW, $spH);
         </table>
         @else
         <div class="py-8 text-center text-xs text-gray-400">No bills yet</div>
+        @endif
+    </div>
+
+    {{-- Outstanding Invoices --}}
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="px-4 py-3 flex items-center justify-between border-b border-gray-50">
+            <div class="flex items-center gap-2">
+                <svg class="w-3.5 h-3.5 text-orange-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span class="section-label">Outstanding</span>
+            </div>
+            <a href="/invoices?status=unpaid" class="text-xs text-blue-500">All →</a>
+        </div>
+        @if($outstandingInvoices->count())
+        <table class="w-full">
+            <tbody>
+            @foreach($outstandingInvoices as $inv)
+            @php
+                $today   = date('Y-m-d');
+                $isOvd   = $inv->due_date && $inv->due_date < $today;
+                $dayDiff = $inv->due_date ? (int)round((strtotime($inv->due_date) - strtotime($today)) / 86400) : null;
+                $dot     = $isOvd ? 'bg-red-500' : 'bg-orange-400';
+                $dueLbl  = $dayDiff === null ? '—'
+                         : ($isOvd ? abs($dayDiff) . 'd overdue' : 'due in ' . $dayDiff . 'd');
+                $dueCls  = $isOvd ? 'text-red-500' : 'text-orange-500';
+            @endphp
+            <tr class="inv-row border-b border-gray-50 last:border-0">
+                <td class="pl-4 pr-2 py-2.5 w-4"><span class="inline-block w-1.5 h-1.5 rounded-full {{ $dot }}"></span></td>
+                <td class="py-2.5 pr-2 min-w-0">
+                    <a href="/invoices/{{ $inv->id }}" class="text-xs font-semibold text-gray-700 hover:text-blue-600 block truncate" style="max-width:110px">{{ $inv->invoice_number }}</a>
+                    <p class="text-xs text-gray-400 truncate" style="max-width:110px">{{ $inv->customer_name }}</p>
+                </td>
+                <td class="py-2.5 pr-4 text-right whitespace-nowrap">
+                    <p class="text-xs font-semibold text-gray-700">{{ number_format($inv->total_amount,0) }}</p>
+                    <p class="text-xs {{ $dueCls }}">{{ $dueLbl }}</p>
+                </td>
+            </tr>
+            @endforeach
+            </tbody>
+        </table>
+        @else
+        <div class="py-8 text-center text-xs text-gray-400">All invoices settled</div>
         @endif
     </div>
 
