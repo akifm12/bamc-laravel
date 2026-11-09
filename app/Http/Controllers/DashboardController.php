@@ -58,7 +58,7 @@ class DashboardController extends Controller
             JOIN accounts a ON a.id = jl.account_id
             WHERE je.company_id = ? AND je.status = 'POSTED'
               AND a.account_type = 'ASSET'
-              AND (LOWER(a.account_name) LIKE '%cash%' OR LOWER(a.account_name) LIKE '%bank%')
+              AND (a.is_cash = true OR a.is_bank = true)
         ", [$companyId]);
         $cashBalance = (float) ($cash->balance ?? 0);
 
