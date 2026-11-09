@@ -161,22 +161,31 @@ public function statement(Request $request, $id)
     $dateFrom = $request->get('date_from', date('Y-01-01'));
     $dateTo   = $request->get('date_to',   date('Y-m-d'));
 
-    // Opening balance: sum of invoices minus payments before date_from
+    // Opening balance: invoices before period minus payments before period
     $openingInvoices = DB::table('invoices')
         ->where('customer_id', $id)->where('company_id', $companyId)
-        ->where('is_deleted', false)->where('invoice_date', '<', $dateFrom)
+        ->where('is_deleted', false)
+        ->whereNotIn('status', ['VOID', 'DRAFT'])
+        ->where('invoice_date', '<', $dateFrom)
         ->sum('total_amount');
-    $openingPayments = DB::table('payments')
-        ->where('customer_id', $id)->where('company_id', $companyId)
-        ->where('is_deleted', false)->where('is_void', false)
-        ->where('payment_date', '<', $dateFrom)
-        ->sum('amount');
+
+    $openingPayments = DB::table('journal_entries as je')
+        ->join('invoices as i', 'i.invoice_number', '=', 'je.reference')
+        ->where('i.customer_id', $id)
+        ->where('je.company_id', $companyId)
+        ->where('je.journal_type', 'BANK_RECEIPT')
+        ->where('je.status', 'POSTED')
+        ->where('je.is_deleted', false)
+        ->where('je.entry_date', '<', $dateFrom)
+        ->sum('je.total_credit');
+
     $openingBalance = $openingInvoices - $openingPayments;
 
     // Invoices in period
     $invoices = DB::table('invoices')
         ->where('customer_id', $id)->where('company_id', $companyId)
         ->where('is_deleted', false)
+        ->whereNotIn('status', ['VOID', 'DRAFT'])
         ->whereBetween('invoice_date', [$dateFrom, $dateTo])
         ->orderBy('invoice_date')->orderBy('id')
         ->get()->map(fn($r) => (object)[
@@ -188,17 +197,22 @@ public function statement(Request $request, $id)
             'credit'      => 0,
         ]);
 
-    // Payments in period
-    $payments = DB::table('payments')
-        ->where('customer_id', $id)->where('company_id', $companyId)
-        ->where('is_deleted', false)->where('is_void', false)
-        ->whereBetween('payment_date', [$dateFrom, $dateTo])
-        ->orderBy('payment_date')->orderBy('id')
+    // Payments in period — sourced from BANK_RECEIPT journal entries linked via invoice reference
+    $payments = DB::table('journal_entries as je')
+        ->join('invoices as i', 'i.invoice_number', '=', 'je.reference')
+        ->where('i.customer_id', $id)
+        ->where('je.company_id', $companyId)
+        ->where('je.journal_type', 'BANK_RECEIPT')
+        ->where('je.status', 'POSTED')
+        ->where('je.is_deleted', false)
+        ->whereBetween('je.entry_date', [$dateFrom, $dateTo])
+        ->select('je.entry_date as payment_date', 'je.entry_number', 'je.description', 'je.total_credit as amount', 'i.invoice_number')
+        ->orderBy('je.entry_date')->orderBy('je.id')
         ->get()->map(fn($r) => (object)[
             'date'        => $r->payment_date,
             'type'        => 'Payment',
-            'reference'   => $r->payment_number,
-            'description' => $r->narration ?? 'Payment Received',
+            'reference'   => $r->entry_number,
+            'description' => $r->description ?? 'Payment Received',
             'debit'       => 0,
             'credit'      => $r->amount,
         ]);
