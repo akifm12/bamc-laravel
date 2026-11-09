@@ -19,13 +19,8 @@ class CTController extends Controller
 
         $company = DB::table('companies')->find($companyId);
 
-        // Build year list from first accounting period to current year
-        $firstPeriod = DB::table('accounting_periods')
-            ->where('company_id', $companyId)
-            ->orderBy('start_date')
-            ->value('start_date');
-
-        $firstYear = $firstPeriod ? (int) date('Y', strtotime($firstPeriod)) : (int) date('Y');
+        // UAE CT effective from 1 June 2023; first full fiscal year filings from 2024
+        $firstYear   = 2024;
         $currentYear = (int) date('Y');
 
         $years = range($firstYear, $currentYear);
@@ -240,13 +235,8 @@ class CTController extends Controller
         $companyId = session('company_id');
         $company   = DB::table('companies')->find($companyId);
 
-        $firstPeriod = DB::table('accounting_periods')
-            ->where('company_id', $companyId)
-            ->orderBy('start_date')->value('start_date');
-        $firstYear   = $firstPeriod ? (int) date('Y', strtotime($firstPeriod)) : (int) date('Y');
-
         $years = [];
-        foreach (range($firstYear, 2026) as $year) {
+        foreach (range(2024, 2026) as $year) {
             $revenue  = $this->getRevenue($companyId, $year);
             $ct       = DB::table('ct_returns')
                 ->where('company_id', $companyId)->where('fiscal_year', $year)->first();
