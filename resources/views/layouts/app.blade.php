@@ -7,7 +7,7 @@
 	<meta name="csrf-token" content="{{ csrf_token() }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-[#e5e7eb] font-sans text-gray-800 text-sm">
+<body class="font-sans text-gray-800 text-sm" style="background:#d1d5db">
 
 <div class="flex h-screen overflow-hidden">
 
@@ -113,7 +113,7 @@
         </header>
 
         <!-- Page content -->
-        <main class="flex-1 overflow-y-auto p-6 bg-[#e5e7eb]">
+        <main class="flex-1 overflow-y-auto p-6" style="background:#d1d5db">
             @if(session('success'))
                 <div class="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-2 rounded text-sm">
                     {{ session('success') }}
