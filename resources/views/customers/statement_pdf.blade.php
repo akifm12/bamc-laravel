@@ -3,10 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <style>
-    @page { margin: 14mm 16mm 14mm 16mm; }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1f2937; margin: 0; padding: 0; }
-    .page { padding: 0; }
+    body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1f2937; margin: 14mm 16mm; }
+    .page { }
 
     .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; border-bottom: 2px solid #15803d; padding-bottom: 16px; }
     .company-name { font-size: 18px; font-weight: bold; color: #15803d; }
