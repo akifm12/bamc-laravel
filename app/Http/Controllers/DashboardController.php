@@ -46,20 +46,56 @@ class DashboardController extends Controller
               AND EXTRACT(YEAR FROM je.entry_date) = ?
         ", [$companyId, $year]);
 
-        $revenue  = (float) ($plYtd->revenue  ?? 0);
-        $expenses = (float) ($plYtd->expenses ?? 0);
+        $revenue   = (float) ($plYtd->revenue  ?? 0);
+        $expenses  = (float) ($plYtd->expenses ?? 0);
         $netProfit = $revenue - $expenses;
 
-        // ── Cash & Bank balances ──────────────────────────────────────────────────
+        // ── Month-over-month deltas (last complete month vs prior month) ──────────
+        $lastMonth  = $month === 1 ? 12 : $month - 1;
+        $lastYear   = $month === 1 ? $year - 1 : $year;
+        $priorMonth = $lastMonth === 1 ? 12 : $lastMonth - 1;
+        $priorYear  = $lastMonth === 1 ? $lastYear - 1 : $lastYear;
+
+        $momQuery = "
+            SELECT
+                COALESCE(SUM(CASE WHEN a.account_type='REVENUE' THEN jl.credit_amount-jl.debit_amount ELSE 0 END),0) AS rev,
+                COALESCE(SUM(CASE WHEN a.account_type='EXPENSE' THEN jl.debit_amount-jl.credit_amount ELSE 0 END),0) AS exp
+            FROM journal_lines jl
+            JOIN journal_entries je ON je.id=jl.journal_entry_id
+            JOIN accounts a ON a.id=jl.account_id
+            WHERE je.company_id=? AND je.status='POSTED' AND je.journal_type!='CLOSING_ENTRY'
+              AND EXTRACT(YEAR FROM je.entry_date)=? AND EXTRACT(MONTH FROM je.entry_date)=?
+        ";
+        $momLast  = DB::selectOne($momQuery, [$companyId, $lastYear,  $lastMonth]);
+        $momPrior = DB::selectOne($momQuery, [$companyId, $priorYear, $priorMonth]);
+
+        $momRevDelta  = $momLast && $momPrior && (float)$momPrior->rev  > 0
+            ? round((((float)$momLast->rev  - (float)$momPrior->rev)  / (float)$momPrior->rev)  * 100, 1) : null;
+        $momExpDelta  = $momLast && $momPrior && (float)$momPrior->exp  > 0
+            ? round((((float)$momLast->exp  - (float)$momPrior->exp)  / (float)$momPrior->exp)  * 100, 1) : null;
+        $lastNet      = $momLast  ? (float)$momLast->rev  - (float)$momLast->exp  : 0;
+        $priorNet     = $momPrior ? (float)$momPrior->rev - (float)$momPrior->exp : 0;
+        $momNetDelta  = $priorNet != 0
+            ? round((($lastNet - $priorNet) / abs($priorNet)) * 100, 1) : null;
+
+        // ── Cash & Bank balances (journal movements + opening balances) ─────────
         $cash = DB::selectOne("
-            SELECT COALESCE(SUM(jl.debit_amount - jl.credit_amount), 0) AS balance
+            SELECT
+                COALESCE(SUM(jl.debit_amount - jl.credit_amount), 0)
+              + COALESCE((
+                    SELECT SUM(COALESCE(a2.opening_balance, 0))
+                    FROM accounts a2
+                    WHERE a2.company_id = ?
+                      AND a2.account_type = 'ASSET'
+                      AND (a2.is_cash = true OR a2.is_bank = true)
+                ), 0) AS balance
             FROM journal_lines jl
             JOIN journal_entries je ON je.id = jl.journal_entry_id
             JOIN accounts a ON a.id = jl.account_id
             WHERE je.company_id = ? AND je.status = 'POSTED'
               AND a.account_type = 'ASSET'
               AND (a.is_cash = true OR a.is_bank = true)
-        ", [$companyId]);
+        ", [$companyId, $companyId]);
         $cashBalance = (float) ($cash->balance ?? 0);
 
         // ── Receivables ───────────────────────────────────────────────────────────
@@ -152,7 +188,8 @@ class DashboardController extends Controller
             'recentInvoices', 'recentBills',
             'vatCollected', 'vatReclaimable', 'vatNetDue', 'vatPeriod',
             'estimatedCT',
-            'year', 'month'
+            'year', 'month',
+            'momRevDelta', 'momExpDelta', 'momNetDelta', 'lastMonth', 'lastYear'
         ) + ['hasCompany' => true]);
     }
 }
