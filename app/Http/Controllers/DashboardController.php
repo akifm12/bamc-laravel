@@ -251,15 +251,23 @@ class DashboardController extends Controller
             ->orderByDesc('bills.bill_date')
             ->limit(5)->get();
 
-        // ── VAT position: live from invoices/bills YTD ───────────────────────────
-        $vatYtdFrom = "{$year}-01-01";
-        $vatYtdTo   = date('Y-m-d');
+        // ── VAT position: current open period (same logic as VATController) ────────
+        $company     = DB::table('companies')->find($companyId);
+        $cycleStart  = (int)($company->vat_quarter_start_month ?? 1);
+        $offset      = (($month - $cycleStart) % 3 + 3) % 3;
+        $startMonth  = $month - $offset;
+        $startYear   = $year;
+        if ($startMonth < 1) { $startMonth += 12; $startYear -= 1; }
+        $endMonth = $startMonth + 2; $endYear = $startYear;
+        if ($endMonth > 12) { $endMonth -= 12; $endYear += 1; }
+        $vatFrom = sprintf('%d-%02d-01', $startYear, $startMonth);
+        $vatTo   = \Carbon\Carbon::create($endYear, $endMonth, 1)->endOfMonth()->toDateString();
 
         $vatOut = DB::table('invoices')
             ->where('company_id', $companyId)
             ->where('is_deleted', false)
             ->whereNotIn('status', ['VOID', 'DRAFT'])
-            ->whereBetween('invoice_date', [$vatYtdFrom, $vatYtdTo])
+            ->whereBetween('invoice_date', [$vatFrom, $vatTo])
             ->selectRaw('COALESCE(SUM(total_vat_amount), 0) AS vat')
             ->first();
 
@@ -267,7 +275,7 @@ class DashboardController extends Controller
             ->where('company_id', $companyId)
             ->where('is_deleted', false)
             ->whereNotIn('status', ['VOID', 'DRAFT'])
-            ->whereBetween('bill_date', [$vatYtdFrom, $vatYtdTo])
+            ->whereBetween('bill_date', [$vatFrom, $vatTo])
             ->selectRaw('COALESCE(SUM(total_vat_amount), 0) AS vat')
             ->first();
 
@@ -275,7 +283,9 @@ class DashboardController extends Controller
         $vatReclaimable = (float)($vatIn->vat  ?? 0);
         $vatNetDue      = $vatCollected - $vatReclaimable;
         $vatPeriod      = null;
-        $vatQtrLabel    = "YTD {$year}";
+        $vatQtrLabel    = \Carbon\Carbon::create($startYear, $startMonth, 1)->format('M')
+                        . '–'
+                        . \Carbon\Carbon::create($endYear, $endMonth, 1)->format('M Y');
 
         // ── CT estimate ────────────────────────────────────────────────────────────
         $estimatedCT = 0;
