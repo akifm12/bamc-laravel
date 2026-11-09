@@ -22,6 +22,7 @@ use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\DataController;
 use App\Http\Controllers\AutoLoginController;
+use App\Http\Controllers\BankReconciliationController;
 
 Route::get('/auto-login', [AutoLoginController::class, 'login'])->name('auto.login');
 
@@ -118,6 +119,15 @@ Route::middleware(['auth'])->group(function () {
 	Route::post('/banking', [BankAccountController::class, 'store'])->name('banking.store');
 	Route::get('/banking/{id}', [BankAccountController::class, 'show'])->name('banking.show');
 	Route::post('/banking/{id}/transaction', [BankAccountController::class, 'addTransaction'])->name('banking.transaction');
+
+	Route::get('/reconciliation',                                      [BankReconciliationController::class, 'index'])->name('reconciliation.index');
+	Route::get('/reconciliation/create',                               [BankReconciliationController::class, 'create'])->name('reconciliation.create');
+	Route::post('/reconciliation',                                     [BankReconciliationController::class, 'store'])->name('reconciliation.store');
+	Route::get('/reconciliation/{id}',                                 [BankReconciliationController::class, 'show'])->name('reconciliation.show');
+	Route::post('/reconciliation/{id}/match',                          [BankReconciliationController::class, 'matchLines'])->name('reconciliation.match');
+	Route::post('/reconciliation/{id}/unmatch/{stmtId}',               [BankReconciliationController::class, 'unmatch'])->name('reconciliation.unmatch');
+	Route::post('/reconciliation/{id}/lock',                           [BankReconciliationController::class, 'lock'])->name('reconciliation.lock');
+	Route::post('/reconciliation/{id}/create-entry',                   [BankReconciliationController::class, 'createEntry'])->name('reconciliation.createEntry');
 
 	Route::get('/ai', [AIController::class, 'index'])->name('ai.index');
 	Route::post('/ai/query', [AIController::class, 'query'])->name('ai.query');

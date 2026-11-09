@@ -69,6 +69,7 @@
                         
             <p class="text-xs font-bold text-gray-800 uppercase px-2 mt-3 mb-1">Banking</p>
             <a href="/banking" class="nav-link {{ request()->is('banking*') ? 'active' : '' }}">🏦 Bank Accounts</a>
+            <a href="/reconciliation" class="nav-link {{ request()->is('reconciliation*') ? 'active' : '' }}">⚖️ Reconciliation</a>
 
             <p class="text-xs font-bold text-gray-800 uppercase px-2 mt-3 mb-1">Accounting</p>
             <a href="/accounts" class="nav-link {{ request()->is('accounts*') ? 'active' : '' }}">📋 Chart of Accounts</a>
