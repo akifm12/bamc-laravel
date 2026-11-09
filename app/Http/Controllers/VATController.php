@@ -28,7 +28,7 @@ class VATController extends Controller
         $currentVAT = $this->calculateVATBoxes($companyId, $currentPeriod['from'], $currentPeriod['to']);
 
         $currentReturn = $returns->get($currentPeriod['from']);
-        $daysUntilDue  = now()->diffInDays($currentPeriod['due'], false);
+        $daysUntilDue  = (int) now()->diffInDays($currentPeriod['due'], false);
 
         // --- Historical quarters ---
         // Start from vat_registration_date, fallback to earliest invoice

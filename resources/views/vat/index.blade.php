@@ -79,7 +79,7 @@
 <!-- Previous Period Quick Check -->
 @php
     $prevReturn = $returns->where('period_from', $prevPeriod['from'])->first();
-    $prevDaysAgo = now()->diffInDays(\Carbon\Carbon::parse($prevPeriod['due']), false);
+    $prevDaysAgo = (int) now()->diffInDays(\Carbon\Carbon::parse($prevPeriod['due']), false);
 @endphp
 <div class="mb-5 bg-white rounded-lg border border-gray-200 px-5 py-3 flex items-center justify-between">
     <div>
