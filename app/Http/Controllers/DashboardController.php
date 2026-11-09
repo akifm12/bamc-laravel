@@ -127,15 +127,15 @@ class DashboardController extends Controller
         $vatPeriod = DB::table('vat_returns')
             ->where('company_id', $companyId)
             ->where('status', '!=', 'PAID')
-            ->orderByDesc('period_end')->first();
+            ->orderByDesc('period_to')->first();
 
         $vatCollected   = 0;
         $vatReclaimable = 0;
         $vatNetDue      = 0;
         if ($vatPeriod) {
-            $vatCollected   = (float) $vatPeriod->output_vat;
-            $vatReclaimable = (float) $vatPeriod->input_vat;
-            $vatNetDue      = (float) $vatPeriod->net_vat_payable;
+            $vatCollected   = (float) ($vatPeriod->box6_total_output_tax ?? 0);
+            $vatReclaimable = (float) ($vatPeriod->box9_total_input_tax  ?? 0);
+            $vatNetDue      = $vatCollected - $vatReclaimable;
         }
 
         // ── CT estimate ────────────────────────────────────────────────────────────
