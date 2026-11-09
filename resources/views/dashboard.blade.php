@@ -10,38 +10,36 @@
 @else
 
 @php
-// ── Sparkline helper ────────────────────────────────────────────────────────
-// Given an array of floats, returns SVG polyline points string scaled to W×H
-function sparkPoints(array $vals, int $w, int $h): string {
-    $n   = count($vals);
-    if ($n === 0) return '';
-    $mn  = min($vals);
-    $mx  = max($vals);
+// ── Dual-line sparkline helper ───────────────────────────────────────────────
+// Returns SVG data for a colored YTD line + gray flat reference at lastYearVal
+function dualSparkData(array $ytdVals, float $flatVal, int $w, int $h): array {
+    if (empty($ytdVals)) return ['pts' => '', 'fill' => '', 'flatY' => $h / 2, 'hasData' => false];
+    $allVals = array_merge($ytdVals, [$flatVal]);
+    $mn  = min(array_merge($allVals, [0]));
+    $mx  = max($allVals) ?: 1;
     $rng = $mx - $mn ?: 1;
+    $n   = count($ytdVals);
     $pts = [];
-    foreach ($vals as $i => $v) {
-        $x    = $n > 1 ? round($i / ($n - 1) * $w, 2) : $w / 2;
-        $y    = round($h - (($v - $mn) / $rng) * ($h - 4) - 2, 2);
+    foreach ($ytdVals as $i => $v) {
+        $x     = $n > 1 ? round($i / ($n - 1) * $w, 2) : $w / 2;
+        $y     = round($h - (($v - $mn) / $rng) * ($h - 6) - 3, 2);
         $pts[] = "$x,$y";
     }
-    return implode(' ', $pts);
+    $polyline = implode(' ', $pts);
+    $flatY    = round($h - (($flatVal - $mn) / $rng) * ($h - 6) - 3, 2);
+    return [
+        'pts'     => $polyline,
+        'fill'    => "$polyline {$w},{$h} 0,{$h}",
+        'flatY'   => $flatY,
+        'hasData' => true,
+    ];
 }
 
-// Sparklines use current-year monthly data so they match the YTD numbers
-$revVals  = collect($sparklineData)->map(fn($m) => (float)$m->revenue)->toArray();
-$expVals  = collect($sparklineData)->map(fn($m) => (float)$m->expenses)->toArray();
-$netVals  = collect($sparklineData)->map(fn($m) => (float)$m->revenue - (float)$m->expenses)->toArray();
-
-$spW = 120; $spH = 32;
-$spRev  = sparkPoints($revVals,  $spW, $spH);
-$spExp  = sparkPoints($expVals,  $spW, $spH);
-$spNet  = sparkPoints($netVals,  $spW, $spH);
-
-// close path for fill polygon
-function sparkFill(string $pts, int $w, int $h): string {
-    if (!$pts) return '';
-    return $pts . " $w,$h 0,$h";
-}
+$spW   = 120; $spH = 32;
+$dRev  = dualSparkData($cumulRev,       $lyRevTotal,  $spW, $spH);
+$dExp  = dualSparkData($cumulExp,       $lyExpTotal,  $spW, $spH);
+$dNet  = dualSparkData($cumulNet,       $lyNetTotal,  $spW, $spH);
+$dCash = dualSparkData($cashMonthlyBals, $lyDecBalance, $spW, $spH);
 @endphp
 
 <style>
@@ -73,18 +71,21 @@ function sparkFill(string $pts, int $w, int $h): string {
             @endif
         </div>
         <p class="db-num text-gray-800">{{ number_format($revenue, 0) }}</p>
-        <p class="text-xs text-gray-400 mt-0.5 mb-2">AED · Jan–{{ date('M') }} vs {{ $year-1 }}</p>
-        @if($spRev)
+        <p class="text-xs text-gray-400 mt-0.5 mb-2">AED · YTD vs {{ $year-1 }} total</p>
+        @if($dRev['hasData'])
         <div class="relative">
             <svg viewBox="0 0 {{ $spW }} {{ $spH }}" class="w-full" style="height:32px" preserveAspectRatio="none">
                 <defs><linearGradient id="gr-rev" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stop-color="#16a34a" stop-opacity=".18"/>
                     <stop offset="100%" stop-color="#16a34a" stop-opacity="0"/>
                 </linearGradient></defs>
-                <polygon points="{{ sparkFill($spRev, $spW, $spH) }}" fill="url(#gr-rev)"/>
-                <polyline points="{{ $spRev }}" fill="none" stroke="#16a34a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <polygon points="{{ $dRev['fill'] }}" fill="url(#gr-rev)"/>
+                @if($lyRevTotal > 0)
+                <line x1="0" y1="{{ $dRev['flatY'] }}" x2="{{ $spW }}" y2="{{ $dRev['flatY'] }}"
+                      stroke="#d1d5db" stroke-width="1" stroke-dasharray="3,2.5"/>
+                @endif
+                <polyline points="{{ $dRev['pts'] }}" fill="none" stroke="#16a34a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span class="absolute bottom-1 right-1 text-gray-300" style="font-size:9px">{{ $year }}</span>
         </div>
         @endif
     </div>
@@ -100,18 +101,21 @@ function sparkFill(string $pts, int $w, int $h): string {
             @endif
         </div>
         <p class="db-num text-gray-800">{{ number_format($expenses, 0) }}</p>
-        <p class="text-xs text-gray-400 mt-0.5 mb-2">AED · Jan–{{ date('M') }} vs {{ $year-1 }}</p>
-        @if($spExp)
+        <p class="text-xs text-gray-400 mt-0.5 mb-2">AED · YTD vs {{ $year-1 }} total</p>
+        @if($dExp['hasData'])
         <div class="relative">
             <svg viewBox="0 0 {{ $spW }} {{ $spH }}" class="w-full" style="height:32px" preserveAspectRatio="none">
                 <defs><linearGradient id="gr-exp" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stop-color="#ef4444" stop-opacity=".15"/>
                     <stop offset="100%" stop-color="#ef4444" stop-opacity="0"/>
                 </linearGradient></defs>
-                <polygon points="{{ sparkFill($spExp, $spW, $spH) }}" fill="url(#gr-exp)"/>
-                <polyline points="{{ $spExp }}" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <polygon points="{{ $dExp['fill'] }}" fill="url(#gr-exp)"/>
+                @if($lyExpTotal > 0)
+                <line x1="0" y1="{{ $dExp['flatY'] }}" x2="{{ $spW }}" y2="{{ $dExp['flatY'] }}"
+                      stroke="#d1d5db" stroke-width="1" stroke-dasharray="3,2.5"/>
+                @endif
+                <polyline points="{{ $dExp['pts'] }}" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span class="absolute bottom-1 right-1 text-gray-300" style="font-size:9px">{{ $year }}</span>
         </div>
         @endif
     </div>
@@ -129,12 +133,12 @@ function sparkFill(string $pts, int $w, int $h): string {
         <p class="db-num {{ $netProfit >= 0 ? 'text-blue-700' : 'text-red-600' }}">{{ number_format(abs($netProfit), 0) }}</p>
         <p class="text-xs mt-0.5 mb-2 {{ $netProfit >= 0 ? 'text-blue-400' : 'text-red-400' }}">
             @if($revenue > 0)
-                {{ number_format(($netProfit / $revenue) * 100, 1) }}% margin · vs {{ $year-1 }}
+                {{ number_format(($netProfit / $revenue) * 100, 1) }}% margin · YTD vs {{ $year-1 }} total
             @else
-                AED · Jan–{{ date('M') }}
+                AED · YTD vs {{ $year-1 }} total
             @endif
         </p>
-        @if($spNet)
+        @if($dNet['hasData'])
         @php $netColor = $netProfit >= 0 ? '#2563eb' : '#ef4444'; @endphp
         <div class="relative">
             <svg viewBox="0 0 {{ $spW }} {{ $spH }}" class="w-full" style="height:32px" preserveAspectRatio="none">
@@ -142,30 +146,45 @@ function sparkFill(string $pts, int $w, int $h): string {
                     <stop offset="0%" stop-color="{{ $netColor }}" stop-opacity=".15"/>
                     <stop offset="100%" stop-color="{{ $netColor }}" stop-opacity="0"/>
                 </linearGradient></defs>
-                <polygon points="{{ sparkFill($spNet, $spW, $spH) }}" fill="url(#gr-net)"/>
-                <polyline points="{{ $spNet }}" fill="none" stroke="{{ $netColor }}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <polygon points="{{ $dNet['fill'] }}" fill="url(#gr-net)"/>
+                @if($lyNetTotal != 0)
+                <line x1="0" y1="{{ $dNet['flatY'] }}" x2="{{ $spW }}" y2="{{ $dNet['flatY'] }}"
+                      stroke="#d1d5db" stroke-width="1" stroke-dasharray="3,2.5"/>
+                @endif
+                <polyline points="{{ $dNet['pts'] }}" fill="none" stroke="{{ $netColor }}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span class="absolute bottom-1 right-1 text-gray-300" style="font-size:9px">{{ $year }}</span>
         </div>
         @endif
     </div>
 
     {{-- Cash & Bank --}}
-    <div class="kpi-card kpi-cash bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+    <div class="kpi-card kpi-cash bg-white rounded-xl border border-gray-100 shadow-sm p-4 pb-0">
         <div class="flex items-center justify-between mb-2">
             <p class="section-label">Cash &amp; Bank Balance</p>
-            <svg class="w-4 h-4 text-violet-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="2" y="5" width="20" height="14" rx="2"/>
-                <line x1="2" y1="10" x2="22" y2="10"/>
-            </svg>
+            @if($lyDecBalance != 0)
+            <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full {{ $cashBalance >= $lyDecBalance ? 'bg-violet-50 text-violet-600' : 'bg-red-50 text-red-500' }}">
+                {{ $cashBalance >= $lyDecBalance ? '↑' : '↓' }} vs LY
+            </span>
+            @endif
         </div>
         <p class="db-num {{ $cashBalance >= 0 ? 'text-violet-700' : 'text-red-600' }}">{{ number_format(abs($cashBalance), 0) }}</p>
-        <p class="text-xs text-gray-400 mt-0.5">AED · all cash &amp; bank accounts</p>
-        <div class="mt-4 flex gap-1">
-            @foreach([0,1,2,3,4,5,6,7,8,9,10,11] as $i)
-            <div class="flex-1 rounded-sm" style="height:6px;background:{{ $cashBalance > 0 ? ($i < 8 ? '#7c3aed' : '#ede9fe') : '#fecaca' }};opacity:{{ 0.3 + $i*0.06 }}"></div>
-            @endforeach
+        <p class="text-xs text-gray-400 mt-0.5 mb-2">AED · vs {{ $year-1 }} close</p>
+        @if($dCash['hasData'])
+        <div class="relative">
+            <svg viewBox="0 0 {{ $spW }} {{ $spH }}" class="w-full" style="height:32px" preserveAspectRatio="none">
+                <defs><linearGradient id="gr-cash" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#7c3aed" stop-opacity=".18"/>
+                    <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+                </linearGradient></defs>
+                <polygon points="{{ $dCash['fill'] }}" fill="url(#gr-cash)"/>
+                @if($lyDecBalance != 0)
+                <line x1="0" y1="{{ $dCash['flatY'] }}" x2="{{ $spW }}" y2="{{ $dCash['flatY'] }}"
+                      stroke="#d1d5db" stroke-width="1" stroke-dasharray="3,2.5"/>
+                @endif
+                <polyline points="{{ $dCash['pts'] }}" fill="none" stroke="#7c3aed" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
         </div>
+        @endif
     </div>
 
 </div>

@@ -87,6 +87,37 @@ class DashboardController extends Controller
             ORDER BY month_num
         ", [$companyId, $year]);
 
+        // ── Cumulative YTD arrays (all months Jan → current, missing months = 0) ─
+        $sparkByMonth = [];
+        foreach ($sparklineData as $m) {
+            $sparkByMonth[(int)$m->month_num] = $m;
+        }
+        $cumulRev = []; $cumulExp = []; $cumulNet = [];
+        $runR = 0; $runE = 0;
+        for ($mo = 1; $mo <= $month; $mo++) {
+            $runR += isset($sparkByMonth[$mo]) ? (float)$sparkByMonth[$mo]->revenue  : 0;
+            $runE += isset($sparkByMonth[$mo]) ? (float)$sparkByMonth[$mo]->expenses : 0;
+            $cumulRev[] = $runR;
+            $cumulExp[] = $runE;
+            $cumulNet[] = $runR - $runE;
+        }
+
+        // ── Last year FULL-YEAR totals (flat reference line for sparklines) ──────
+        $plFullPY = DB::selectOne("
+            SELECT
+                COALESCE(SUM(CASE WHEN a.account_type='REVENUE' THEN jl.credit_amount-jl.debit_amount ELSE 0 END),0) AS revenue,
+                COALESCE(SUM(CASE WHEN a.account_type='EXPENSE' THEN jl.debit_amount-jl.credit_amount ELSE 0 END),0) AS expenses
+            FROM journal_lines jl
+            JOIN journal_entries je ON je.id=jl.journal_entry_id
+            JOIN accounts a ON a.id=jl.account_id
+            WHERE je.company_id=? AND je.status='POSTED' AND je.journal_type!='CLOSING_ENTRY'
+              AND EXTRACT(YEAR FROM je.entry_date)=?
+        ", [$companyId, $year - 1]);
+
+        $lyRevTotal = (float)($plFullPY->revenue  ?? 0);
+        $lyExpTotal = (float)($plFullPY->expenses ?? 0);
+        $lyNetTotal = $lyRevTotal - $lyExpTotal;
+
         // ── Cash & Bank balances (journal movements + opening balances) ─────────
         $cash = DB::selectOne("
             SELECT
@@ -106,6 +137,46 @@ class DashboardController extends Controller
               AND (a.is_cash = true OR a.is_bank = true)
         ", [$companyId, $companyId]);
         $cashBalance = (float) ($cash->balance ?? 0);
+
+        // ── Cash monthly balances (last year Dec 31 as flat reference) ───────────
+        // Opening = all cash movements + opening_balance fields before Jan 1 of current year
+        $cashOpenRow = DB::selectOne("
+            SELECT
+                COALESCE(SUM(jl.debit_amount - jl.credit_amount), 0)
+              + COALESCE((
+                    SELECT SUM(COALESCE(a2.opening_balance, 0))
+                    FROM accounts a2
+                    WHERE a2.company_id = ? AND a2.account_type = 'ASSET'
+                      AND (a2.is_cash = true OR a2.is_bank = true)
+                ), 0) AS balance
+            FROM journal_lines jl
+            JOIN journal_entries je ON je.id = jl.journal_entry_id
+            JOIN accounts a ON a.id = jl.account_id
+            WHERE je.company_id = ? AND je.status = 'POSTED'
+              AND a.account_type = 'ASSET' AND (a.is_cash = true OR a.is_bank = true)
+              AND je.entry_date < ?
+        ", [$companyId, $companyId, "{$year}-01-01"]);
+        $lyDecBalance = (float)($cashOpenRow->balance ?? 0);
+
+        $cashMoves = DB::select("
+            SELECT CAST(EXTRACT(MONTH FROM je.entry_date) AS INTEGER) AS month_num,
+                   COALESCE(SUM(jl.debit_amount - jl.credit_amount), 0) AS movement
+            FROM journal_lines jl
+            JOIN journal_entries je ON je.id = jl.journal_entry_id
+            JOIN accounts a ON a.id = jl.account_id
+            WHERE je.company_id = ? AND je.status = 'POSTED'
+              AND a.account_type = 'ASSET' AND (a.is_cash = true OR a.is_bank = true)
+              AND EXTRACT(YEAR FROM je.entry_date) = ?
+            GROUP BY month_num ORDER BY month_num
+        ", [$companyId, $year]);
+        $moveByMo = [];
+        foreach ($cashMoves as $m) { $moveByMo[$m->month_num] = (float)$m->movement; }
+        $cashMonthlyBals = [];
+        $runC = $lyDecBalance;
+        for ($mo = 1; $mo <= $month; $mo++) {
+            $runC += $moveByMo[$mo] ?? 0;
+            $cashMonthlyBals[] = $runC;
+        }
 
         // ── Receivables ───────────────────────────────────────────────────────────
         $receivables = DB::selectOne("
@@ -194,6 +265,9 @@ class DashboardController extends Controller
             'cashBalance',
             'receivables', 'payables',
             'monthlyData', 'sparklineData',
+            'cumulRev', 'cumulExp', 'cumulNet',
+            'lyRevTotal', 'lyExpTotal', 'lyNetTotal',
+            'cashMonthlyBals', 'lyDecBalance',
             'recentInvoices', 'recentBills',
             'vatCollected', 'vatReclaimable', 'vatNetDue', 'vatPeriod',
             'estimatedCT',
