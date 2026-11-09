@@ -251,20 +251,33 @@ class DashboardController extends Controller
             ->orderByDesc('bills.bill_date')
             ->limit(5)->get();
 
-        // ── VAT position (current quarter / period) ───────────────────────────────
-        $vatPeriod = DB::table('vat_returns')
-            ->where('company_id', $companyId)
-            ->where('status', '!=', 'PAID')
-            ->orderByDesc('period_to')->first();
+        // ── VAT position: live from invoices/bills for current quarter ───────────
+        // Current quarter window
+        $qtr        = (int) ceil($month / 3);
+        $qtrFrom    = sprintf('%d-%02d-01', $year, ($qtr - 1) * 3 + 1);
+        $qtrTo      = date('Y-m-d');   // up to today
 
-        $vatCollected   = 0;
-        $vatReclaimable = 0;
-        $vatNetDue      = 0;
-        if ($vatPeriod) {
-            $vatCollected   = (float) ($vatPeriod->box6_total_output_tax ?? 0);
-            $vatReclaimable = (float) ($vatPeriod->box9_total_input_tax  ?? 0);
-            $vatNetDue      = $vatCollected - $vatReclaimable;
-        }
+        $vatOut = DB::table('invoices')
+            ->where('company_id', $companyId)
+            ->where('is_deleted', false)
+            ->whereNotIn('status', ['VOID', 'DRAFT'])
+            ->whereBetween('invoice_date', [$qtrFrom, $qtrTo])
+            ->selectRaw('COALESCE(SUM(total_vat_amount), 0) AS vat')
+            ->first();
+
+        $vatIn = DB::table('bills')
+            ->where('company_id', $companyId)
+            ->where('is_deleted', false)
+            ->whereNotIn('status', ['VOID', 'DRAFT'])
+            ->whereBetween('bill_date', [$qtrFrom, $qtrTo])
+            ->selectRaw('COALESCE(SUM(total_vat_amount), 0) AS vat')
+            ->first();
+
+        $vatCollected   = (float)($vatOut->vat ?? 0);
+        $vatReclaimable = (float)($vatIn->vat  ?? 0);
+        $vatNetDue      = $vatCollected - $vatReclaimable;
+        $vatPeriod      = null;   // kept for view compatibility
+        $vatQtrLabel    = "Q{$qtr} {$year}";
 
         // ── CT estimate ────────────────────────────────────────────────────────────
         $estimatedCT = 0;
@@ -281,7 +294,7 @@ class DashboardController extends Controller
             'lyRevTotal', 'lyExpTotal', 'lyNetTotal',
             'cashMonthlyBals', 'lyDecBalance',
             'recentInvoices', 'recentBills', 'outstandingInvoices',
-            'vatCollected', 'vatReclaimable', 'vatNetDue', 'vatPeriod',
+            'vatCollected', 'vatReclaimable', 'vatNetDue', 'vatPeriod', 'vatQtrLabel',
             'estimatedCT',
             'year', 'month',
             'yoyRevDelta', 'yoyExpDelta', 'yoyNetDelta'
