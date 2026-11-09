@@ -16,6 +16,7 @@ use App\Http\Controllers\CompanySetupController;
 use App\Http\Controllers\BankAccountController;
 use App\Http\Controllers\AIController;
 use App\Http\Controllers\VATController;
+use App\Http\Controllers\CTController;
 use App\Http\Controllers\FixedAssetController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\InventoryController;
@@ -120,6 +121,14 @@ Route::middleware(['auth'])->group(function () {
 
 	Route::get('/ai', [AIController::class, 'index'])->name('ai.index');
 	Route::post('/ai/query', [AIController::class, 'query'])->name('ai.query');
+
+	Route::get('/ct',              [CTController::class, 'index'])->name('ct.index');
+	Route::get('/ct/sbr',          [CTController::class, 'sbr'])->name('ct.sbr');
+	Route::get('/ct/create',       [CTController::class, 'create'])->name('ct.create');
+	Route::post('/ct',             [CTController::class, 'store'])->name('ct.store');
+	Route::get('/ct/{id}',         [CTController::class, 'show'])->name('ct.show');
+	Route::post('/ct/{id}/submit', [CTController::class, 'submit'])->name('ct.submit');
+	Route::post('/ct/{id}/pay',    [CTController::class, 'pay'])->name('ct.pay');
 
 	Route::get('/vat', [VATController::class, 'index'])->name('vat.index');
 	Route::get('/vat/create', [VATController::class, 'create'])->name('vat.create');

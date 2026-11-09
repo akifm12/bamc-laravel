@@ -85,6 +85,7 @@
                         
             <p class="text-xs font-bold text-gray-800 uppercase px-2 mt-3 mb-1">Tax</p>
             <a href="/vat" class="nav-link {{ request()->is('vat*') ? 'active' : '' }}">🧾 VAT Returns</a>
+            <a href="/ct"  class="nav-link {{ request()->is('ct*')  ? 'active' : '' }}">🏢 Corporate Tax</a>
 
             <p class="text-xs font-bold text-gray-800 uppercase px-2 mt-3 mb-1">Settings</p>
             <a href="/users" class="nav-link {{ request()->is('users*') ? 'active' : '' }}">👥 Users</a>
