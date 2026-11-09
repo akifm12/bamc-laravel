@@ -30,7 +30,9 @@ class InvoiceController extends Controller
             ->select('invoices.*', 'customers.name as customer_name')
             ->orderBy('invoices.invoice_date', 'desc');
 
-        if ($status !== 'all') {
+        if ($status === 'unpaid') {
+            $query->whereNotIn('invoices.status', ['PAID', 'VOID']);
+        } elseif ($status !== 'all') {
             $query->where('invoices.status', strtoupper($status));
         }
 
