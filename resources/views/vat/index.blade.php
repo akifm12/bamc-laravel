@@ -58,11 +58,19 @@
                 </a>
                 <p class="text-xs text-center text-gray-400 mt-1">Return {{ $currentReturn->return_number }} ({{ ucfirst(strtolower($currentReturn->status)) }})</p>
             @else
-                <a href="/vat/create?date_from={{ $currentPeriod['from'] }}&date_to={{ $currentPeriod['to'] }}"
-                    class="text-sm text-center bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800">
-                    ➕ File Return for This Period
-                </a>
-                <p class="text-xs text-center text-gray-400 mt-1">No return filed yet</p>
+                @php $periodEnded = now()->toDateString() > $currentPeriod['to']; @endphp
+                @if($periodEnded)
+                    <a href="/vat/create?date_from={{ $currentPeriod['from'] }}&date_to={{ $currentPeriod['to'] }}"
+                        class="text-sm text-center bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800">
+                        ➕ File Return for This Period
+                    </a>
+                    <p class="text-xs text-center text-gray-400 mt-1">No return filed yet</p>
+                @else
+                    <span class="text-sm text-center bg-gray-100 text-gray-400 px-4 py-2 rounded cursor-not-allowed block">
+                        ➕ File Return for This Period
+                    </span>
+                    <p class="text-xs text-center text-gray-400 mt-1">Available after {{ \Carbon\Carbon::parse($currentPeriod['to'])->format('d M Y') }}</p>
+                @endif
             @endif
         </div>
     </div>

@@ -47,10 +47,18 @@
             @endif
         </div>
         <div class="flex flex-col justify-center">
-            <a href="/ct/create?year={{ $currentYear }}"
-               class="text-sm text-center bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800">
-                ➕ Prepare CT Return
-            </a>
+            @php $curYearEnded = date('Y-m-d') > "{$currentYear}-12-31"; @endphp
+            @if($curYearEnded)
+                <a href="/ct/create?year={{ $currentYear }}"
+                   class="text-sm text-center bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800">
+                    ➕ Prepare CT Return
+                </a>
+            @else
+                <span class="text-sm text-center bg-gray-100 text-gray-400 px-4 py-2 rounded cursor-not-allowed block">
+                    ➕ Prepare CT Return
+                </span>
+                <p class="text-xs text-center text-gray-400 mt-1">Available after 31 Dec {{ $currentYear }}</p>
+            @endif
         </div>
     </div>
 </div>
@@ -118,11 +126,13 @@
                 <td class="px-4 py-3 text-right">
                     @if($r)
                         <a href="/ct/{{ $r->id }}" class="text-xs text-blue-500 hover:text-blue-700">View →</a>
-                    @else
+                    @elseif(date('Y-m-d') > "{$h['year']}-12-31")
                         <a href="/ct/create?year={{ $h['year'] }}"
                            class="text-xs bg-green-700 text-white px-2 py-0.5 rounded hover:bg-green-800">
                             Prepare
                         </a>
+                    @else
+                        <span class="text-xs text-gray-400 cursor-not-allowed" title="Available after 31 Dec {{ $h['year'] }}">Not yet due</span>
                     @endif
                 </td>
             </tr>
