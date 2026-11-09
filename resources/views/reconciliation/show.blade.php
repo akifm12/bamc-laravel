@@ -195,7 +195,7 @@
                         @php
                             $allAccts = \Illuminate\Support\Facades\DB::table('accounts')
                                 ->where('company_id', session('company_id'))
-                                ->where('is_deleted', false)
+                                ->where('is_active', true)
                                 ->orderBy('name')->get();
                         @endphp
                         <select name="debit_account_id" required class="w-full border border-gray-200 rounded px-2 py-1 text-xs">

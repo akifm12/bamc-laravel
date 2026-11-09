@@ -31,7 +31,7 @@ class BankReconciliationController extends Controller
             ->where(function ($q) {
                 $q->where('is_bank', true)->orWhere('is_cash', true);
             })
-            ->where('is_deleted', false)
+            ->where('is_active', true)
             ->orderBy('name')
             ->get();
 
@@ -48,7 +48,7 @@ class BankReconciliationController extends Controller
             ->where(function ($q) {
                 $q->where('is_bank', true)->orWhere('is_cash', true);
             })
-            ->where('is_deleted', false)
+            ->where('is_active', true)
             ->orderBy('name')
             ->get();
 
