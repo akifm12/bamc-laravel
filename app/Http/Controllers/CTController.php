@@ -163,7 +163,7 @@ class CTController extends Controller
             'sbr_elected'         => $sbrElected,
             'status'              => 'DRAFT',
             'notes'               => $request->notes,
-            'created_by_id'       => auth()->id(),
+            'created_by_id'       => auth()->user()->id ?? null,
             'created_at'          => now(),
             'updated_at'          => now(),
         ]);
