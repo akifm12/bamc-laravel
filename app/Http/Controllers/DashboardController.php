@@ -251,17 +251,15 @@ class DashboardController extends Controller
             ->orderByDesc('bills.bill_date')
             ->limit(5)->get();
 
-        // ── VAT position: live from invoices/bills for current quarter ───────────
-        // Current quarter window
-        $qtr        = (int) ceil($month / 3);
-        $qtrFrom    = sprintf('%d-%02d-01', $year, ($qtr - 1) * 3 + 1);
-        $qtrTo      = date('Y-m-d');   // up to today
+        // ── VAT position: live from invoices/bills YTD ───────────────────────────
+        $vatYtdFrom = "{$year}-01-01";
+        $vatYtdTo   = date('Y-m-d');
 
         $vatOut = DB::table('invoices')
             ->where('company_id', $companyId)
             ->where('is_deleted', false)
             ->whereNotIn('status', ['VOID', 'DRAFT'])
-            ->whereBetween('invoice_date', [$qtrFrom, $qtrTo])
+            ->whereBetween('invoice_date', [$vatYtdFrom, $vatYtdTo])
             ->selectRaw('COALESCE(SUM(total_vat_amount), 0) AS vat')
             ->first();
 
@@ -269,15 +267,15 @@ class DashboardController extends Controller
             ->where('company_id', $companyId)
             ->where('is_deleted', false)
             ->whereNotIn('status', ['VOID', 'DRAFT'])
-            ->whereBetween('bill_date', [$qtrFrom, $qtrTo])
+            ->whereBetween('bill_date', [$vatYtdFrom, $vatYtdTo])
             ->selectRaw('COALESCE(SUM(total_vat_amount), 0) AS vat')
             ->first();
 
         $vatCollected   = (float)($vatOut->vat ?? 0);
         $vatReclaimable = (float)($vatIn->vat  ?? 0);
         $vatNetDue      = $vatCollected - $vatReclaimable;
-        $vatPeriod      = null;   // kept for view compatibility
-        $vatQtrLabel    = "Q{$qtr} {$year}";
+        $vatPeriod      = null;
+        $vatQtrLabel    = "YTD {$year}";
 
         // ── CT estimate ────────────────────────────────────────────────────────────
         $estimatedCT = 0;
