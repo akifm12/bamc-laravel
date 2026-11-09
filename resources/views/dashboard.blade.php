@@ -201,7 +201,7 @@
                         'DRAFT'      => 'bg-gray-100 text-gray-500',
                         default      => 'bg-yellow-100 text-yellow-700',
                     };
-                    $isOverdue = $inv->due_date && $inv->due_date < date('Y-m-d') && !in_array($inv->status, ['PAID','CANCELLED']);
+                    $isOverdue = $inv->due_date && $inv->due_date < date('Y-m-d') && !in_array($inv->status, ['PAID','VOID']);
                 @endphp
                 <tr class="border-b border-gray-50 hover:bg-gray-50">
                     <td class="px-4 py-2.5">
@@ -257,7 +257,7 @@
                         'DRAFT'   => 'bg-gray-100 text-gray-500',
                         default   => 'bg-yellow-100 text-yellow-700',
                     };
-                    $isOverdue = $bill->due_date && $bill->due_date < date('Y-m-d') && !in_array($bill->status, ['PAID','CANCELLED']);
+                    $isOverdue = $bill->due_date && $bill->due_date < date('Y-m-d') && !in_array($bill->status, ['PAID','VOID']);
                 @endphp
                 <tr class="border-b border-gray-50 hover:bg-gray-50">
                     <td class="px-4 py-2.5">

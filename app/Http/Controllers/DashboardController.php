@@ -70,7 +70,7 @@ class DashboardController extends Controller
                 COUNT(*)                                                                              AS count,
                 COUNT(CASE WHEN due_date < CURRENT_DATE THEN 1 END)                                 AS overdue_count
             FROM invoices
-            WHERE company_id = ? AND status NOT IN ('PAID','CANCELLED') AND is_deleted = false
+            WHERE company_id = ? AND status NOT IN ('PAID','VOID') AND is_deleted = false
         ", [$companyId]);
 
         // ── Payables ──────────────────────────────────────────────────────────────
@@ -80,7 +80,7 @@ class DashboardController extends Controller
                 COALESCE(SUM(CASE WHEN due_date < CURRENT_DATE THEN total_amount ELSE 0 END), 0)    AS overdue,
                 COUNT(*)                                                                              AS count
             FROM bills
-            WHERE company_id = ? AND status NOT IN ('PAID','CANCELLED') AND is_deleted = false
+            WHERE company_id = ? AND status NOT IN ('PAID','VOID') AND is_deleted = false
         ", [$companyId]);
 
         // ── Monthly revenue vs expenses (last 6 months) ───────────────────────────
