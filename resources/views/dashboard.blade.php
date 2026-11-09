@@ -27,9 +27,10 @@ function sparkPoints(array $vals, int $w, int $h): string {
     return implode(' ', $pts);
 }
 
-$revVals  = collect($monthlyData)->map(fn($m) => (float)$m->revenue)->toArray();
-$expVals  = collect($monthlyData)->map(fn($m) => (float)$m->expenses)->toArray();
-$netVals  = collect($monthlyData)->map(fn($m) => (float)$m->revenue - (float)$m->expenses)->toArray();
+// Sparklines use current-year monthly data so they match the YTD numbers
+$revVals  = collect($sparklineData)->map(fn($m) => (float)$m->revenue)->toArray();
+$expVals  = collect($sparklineData)->map(fn($m) => (float)$m->expenses)->toArray();
+$netVals  = collect($sparklineData)->map(fn($m) => (float)$m->revenue - (float)$m->expenses)->toArray();
 
 $spW = 120; $spH = 32;
 $spRev  = sparkPoints($revVals,  $spW, $spH);
@@ -65,14 +66,14 @@ function sparkFill(string $pts, int $w, int $h): string {
     <div class="kpi-card kpi-rev bg-white rounded-xl border border-gray-100 shadow-sm p-4 pb-0">
         <div class="flex items-center justify-between mb-2">
             <p class="section-label">Revenue YTD</p>
-            @if($momRevDelta !== null)
-            <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full {{ $momRevDelta >= 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500' }}">
-                {{ $momRevDelta >= 0 ? '↑' : '↓' }} {{ abs($momRevDelta) }}%
+            @if($yoyRevDelta !== null)
+            <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full {{ $yoyRevDelta >= 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500' }}">
+                {{ $yoyRevDelta >= 0 ? '↑' : '↓' }} {{ abs($yoyRevDelta) }}%
             </span>
             @endif
         </div>
         <p class="db-num text-gray-800">{{ number_format($revenue, 0) }}</p>
-        <p class="text-xs text-gray-400 mt-0.5 mb-2">AED · vs last mo</p>
+        <p class="text-xs text-gray-400 mt-0.5 mb-2">AED · Jan–{{ date('M') }} vs {{ $year-1 }}</p>
         @if($spRev)
         <div class="relative">
             <svg viewBox="0 0 {{ $spW }} {{ $spH }}" class="w-full" style="height:32px" preserveAspectRatio="none">
@@ -83,7 +84,7 @@ function sparkFill(string $pts, int $w, int $h): string {
                 <polygon points="{{ sparkFill($spRev, $spW, $spH) }}" fill="url(#gr-rev)"/>
                 <polyline points="{{ $spRev }}" fill="none" stroke="#16a34a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span class="absolute bottom-1 right-1 text-gray-300" style="font-size:9px">6 mo</span>
+            <span class="absolute bottom-1 right-1 text-gray-300" style="font-size:9px">{{ $year }}</span>
         </div>
         @endif
     </div>
@@ -92,14 +93,14 @@ function sparkFill(string $pts, int $w, int $h): string {
     <div class="kpi-card kpi-exp bg-white rounded-xl border border-gray-100 shadow-sm p-4 pb-0">
         <div class="flex items-center justify-between mb-2">
             <p class="section-label">Expenses YTD</p>
-            @if($momExpDelta !== null)
-            <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full {{ $momExpDelta <= 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500' }}">
-                {{ $momExpDelta >= 0 ? '↑' : '↓' }} {{ abs($momExpDelta) }}%
+            @if($yoyExpDelta !== null)
+            <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full {{ $yoyExpDelta <= 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500' }}">
+                {{ $yoyExpDelta >= 0 ? '↑' : '↓' }} {{ abs($yoyExpDelta) }}%
             </span>
             @endif
         </div>
         <p class="db-num text-gray-800">{{ number_format($expenses, 0) }}</p>
-        <p class="text-xs text-gray-400 mt-0.5 mb-2">AED · vs last mo</p>
+        <p class="text-xs text-gray-400 mt-0.5 mb-2">AED · Jan–{{ date('M') }} vs {{ $year-1 }}</p>
         @if($spExp)
         <div class="relative">
             <svg viewBox="0 0 {{ $spW }} {{ $spH }}" class="w-full" style="height:32px" preserveAspectRatio="none">
@@ -110,7 +111,7 @@ function sparkFill(string $pts, int $w, int $h): string {
                 <polygon points="{{ sparkFill($spExp, $spW, $spH) }}" fill="url(#gr-exp)"/>
                 <polyline points="{{ $spExp }}" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span class="absolute bottom-1 right-1 text-gray-300" style="font-size:9px">6 mo</span>
+            <span class="absolute bottom-1 right-1 text-gray-300" style="font-size:9px">{{ $year }}</span>
         </div>
         @endif
     </div>
@@ -119,18 +120,18 @@ function sparkFill(string $pts, int $w, int $h): string {
     <div class="kpi-card kpi-net bg-white rounded-xl border border-gray-100 shadow-sm p-4 pb-0">
         <div class="flex items-center justify-between mb-2">
             <p class="section-label">Net {{ $netProfit >= 0 ? 'Profit' : 'Loss' }}</p>
-            @if($momNetDelta !== null)
-            <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full {{ $momNetDelta >= 0 ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-500' }}">
-                {{ $momNetDelta >= 0 ? '↑' : '↓' }} {{ abs($momNetDelta) }}%
+            @if($yoyNetDelta !== null)
+            <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full {{ $yoyNetDelta >= 0 ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-500' }}">
+                {{ $yoyNetDelta >= 0 ? '↑' : '↓' }} {{ abs($yoyNetDelta) }}%
             </span>
             @endif
         </div>
         <p class="db-num {{ $netProfit >= 0 ? 'text-blue-700' : 'text-red-600' }}">{{ number_format(abs($netProfit), 0) }}</p>
         <p class="text-xs mt-0.5 mb-2 {{ $netProfit >= 0 ? 'text-blue-400' : 'text-red-400' }}">
             @if($revenue > 0)
-                {{ number_format(($netProfit / $revenue) * 100, 1) }}% margin
+                {{ number_format(($netProfit / $revenue) * 100, 1) }}% margin · vs {{ $year-1 }}
             @else
-                AED
+                AED · Jan–{{ date('M') }}
             @endif
         </p>
         @if($spNet)
@@ -144,7 +145,7 @@ function sparkFill(string $pts, int $w, int $h): string {
                 <polygon points="{{ sparkFill($spNet, $spW, $spH) }}" fill="url(#gr-net)"/>
                 <polyline points="{{ $spNet }}" fill="none" stroke="{{ $netColor }}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span class="absolute bottom-1 right-1 text-gray-300" style="font-size:9px">6 mo</span>
+            <span class="absolute bottom-1 right-1 text-gray-300" style="font-size:9px">{{ $year }}</span>
         </div>
         @endif
     </div>
@@ -152,14 +153,14 @@ function sparkFill(string $pts, int $w, int $h): string {
     {{-- Cash & Bank --}}
     <div class="kpi-card kpi-cash bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div class="flex items-center justify-between mb-2">
-            <p class="section-label">Cash &amp; Bank</p>
+            <p class="section-label">Cash &amp; Bank Balance</p>
             <svg class="w-4 h-4 text-violet-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="2" y="5" width="20" height="14" rx="2"/>
                 <line x1="2" y1="10" x2="22" y2="10"/>
             </svg>
         </div>
         <p class="db-num {{ $cashBalance >= 0 ? 'text-violet-700' : 'text-red-600' }}">{{ number_format(abs($cashBalance), 0) }}</p>
-        <p class="text-xs text-gray-400 mt-0.5">AED · all accounts</p>
+        <p class="text-xs text-gray-400 mt-0.5">AED · all cash &amp; bank accounts</p>
         <div class="mt-4 flex gap-1">
             @foreach([0,1,2,3,4,5,6,7,8,9,10,11] as $i)
             <div class="flex-1 rounded-sm" style="height:6px;background:{{ $cashBalance > 0 ? ($i < 8 ? '#7c3aed' : '#ede9fe') : '#fecaca' }};opacity:{{ 0.3 + $i*0.06 }}"></div>

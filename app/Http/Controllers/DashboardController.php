@@ -50,33 +50,42 @@ class DashboardController extends Controller
         $expenses  = (float) ($plYtd->expenses ?? 0);
         $netProfit = $revenue - $expenses;
 
-        // ── Month-over-month deltas (last complete month vs prior month) ──────────
-        $lastMonth  = $month === 1 ? 12 : $month - 1;
-        $lastYear   = $month === 1 ? $year - 1 : $year;
-        $priorMonth = $lastMonth === 1 ? 12 : $lastMonth - 1;
-        $priorYear  = $lastMonth === 1 ? $lastYear - 1 : $lastYear;
-
-        $momQuery = "
+        // ── YTD last year (same Jan–month window) for YoY delta ──────────────────
+        $plLastYear = DB::selectOne("
             SELECT
-                COALESCE(SUM(CASE WHEN a.account_type='REVENUE' THEN jl.credit_amount-jl.debit_amount ELSE 0 END),0) AS rev,
-                COALESCE(SUM(CASE WHEN a.account_type='EXPENSE' THEN jl.debit_amount-jl.credit_amount ELSE 0 END),0) AS exp
+                COALESCE(SUM(CASE WHEN a.account_type='REVENUE' THEN jl.credit_amount-jl.debit_amount ELSE 0 END),0) AS revenue,
+                COALESCE(SUM(CASE WHEN a.account_type='EXPENSE' THEN jl.debit_amount-jl.credit_amount ELSE 0 END),0) AS expenses
             FROM journal_lines jl
             JOIN journal_entries je ON je.id=jl.journal_entry_id
             JOIN accounts a ON a.id=jl.account_id
             WHERE je.company_id=? AND je.status='POSTED' AND je.journal_type!='CLOSING_ENTRY'
-              AND EXTRACT(YEAR FROM je.entry_date)=? AND EXTRACT(MONTH FROM je.entry_date)=?
-        ";
-        $momLast  = DB::selectOne($momQuery, [$companyId, $lastYear,  $lastMonth]);
-        $momPrior = DB::selectOne($momQuery, [$companyId, $priorYear, $priorMonth]);
+              AND EXTRACT(YEAR FROM je.entry_date)=?
+              AND EXTRACT(MONTH FROM je.entry_date) <= ?
+        ", [$companyId, $year - 1, $month]);
 
-        $momRevDelta  = $momLast && $momPrior && (float)$momPrior->rev  > 0
-            ? round((((float)$momLast->rev  - (float)$momPrior->rev)  / (float)$momPrior->rev)  * 100, 1) : null;
-        $momExpDelta  = $momLast && $momPrior && (float)$momPrior->exp  > 0
-            ? round((((float)$momLast->exp  - (float)$momPrior->exp)  / (float)$momPrior->exp)  * 100, 1) : null;
-        $lastNet      = $momLast  ? (float)$momLast->rev  - (float)$momLast->exp  : 0;
-        $priorNet     = $momPrior ? (float)$momPrior->rev - (float)$momPrior->exp : 0;
-        $momNetDelta  = $priorNet != 0
-            ? round((($lastNet - $priorNet) / abs($priorNet)) * 100, 1) : null;
+        $revPY     = (float)($plLastYear->revenue  ?? 0);
+        $expPY     = (float)($plLastYear->expenses ?? 0);
+        $netPY     = $revPY - $expPY;
+
+        $yoyRevDelta = $revPY > 0 ? round(($revenue  - $revPY)  / $revPY         * 100, 1) : null;
+        $yoyExpDelta = $expPY > 0 ? round(($expenses - $expPY)  / $expPY         * 100, 1) : null;
+        $yoyNetDelta = $netPY != 0 ? round(($netProfit - $netPY) / abs($netPY)   * 100, 1) : null;
+
+        // ── Sparkline data: monthly values for current year (Jan → now) ───────────
+        $sparklineData = DB::select("
+            SELECT
+                EXTRACT(MONTH FROM je.entry_date) AS month_num,
+                TO_CHAR(je.entry_date, 'Mon') AS month_label,
+                COALESCE(SUM(CASE WHEN a.account_type='REVENUE' THEN jl.credit_amount-jl.debit_amount ELSE 0 END),0) AS revenue,
+                COALESCE(SUM(CASE WHEN a.account_type='EXPENSE' THEN jl.debit_amount-jl.credit_amount ELSE 0 END),0) AS expenses
+            FROM journal_lines jl
+            JOIN journal_entries je ON je.id=jl.journal_entry_id
+            JOIN accounts a ON a.id=jl.account_id
+            WHERE je.company_id=? AND je.status='POSTED' AND je.journal_type!='CLOSING_ENTRY'
+              AND EXTRACT(YEAR FROM je.entry_date)=?
+            GROUP BY month_num, month_label
+            ORDER BY month_num
+        ", [$companyId, $year]);
 
         // ── Cash & Bank balances (journal movements + opening balances) ─────────
         $cash = DB::selectOne("
@@ -184,12 +193,12 @@ class DashboardController extends Controller
             'revenue', 'expenses', 'netProfit',
             'cashBalance',
             'receivables', 'payables',
-            'monthlyData',
+            'monthlyData', 'sparklineData',
             'recentInvoices', 'recentBills',
             'vatCollected', 'vatReclaimable', 'vatNetDue', 'vatPeriod',
             'estimatedCT',
             'year', 'month',
-            'momRevDelta', 'momExpDelta', 'momNetDelta', 'lastMonth', 'lastYear'
+            'yoyRevDelta', 'yoyExpDelta', 'yoyNetDelta'
         ) + ['hasCompany' => true]);
     }
 }
