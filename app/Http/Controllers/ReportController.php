@@ -734,50 +734,72 @@ class ReportController extends Controller
         $dateFrom = $request->get('date_from', date('Y-01-01'));
         $dateTo   = $request->get('date_to',   date('Y-m-d'));
 
-        // Pull all movements on VAT-tagged accounts in the period
-        $lines = DB::select("
-            SELECT
-                a.id         AS account_id,
-                a.code,
-                a.name       AS account_name,
-                a.account_type,
-                je.entry_date,
-                je.entry_number,
-                je.reference,
-                COALESCE(jl.description, je.description) AS description,
-                jl.debit_amount,
-                jl.credit_amount
-            FROM journal_lines jl
-            JOIN journal_entries je ON je.id = jl.journal_entry_id
-            JOIN accounts a ON a.id = jl.account_id
-            WHERE je.company_id = ?
-              AND je.status = 'POSTED'
-              AND je.entry_date >= ?
-              AND je.entry_date <= ?
-              AND a.account_type IN ('ASSET', 'LIABILITY')
-              AND (
-                  a.is_vat_account = true
-                  OR a.name ILIKE '%VAT%'
-                  OR a.name ILIKE '%Tax Payable%'
-                  OR a.name ILIKE '%Tax Receivable%'
-              )
-            ORDER BY a.account_type DESC, je.entry_date, je.id
-        ", [$companyId, $dateFrom, $dateTo]);
+        // --- Output VAT: one row per invoice that charged VAT ---
+        $invoiceLines = DB::table('invoices')
+            ->leftJoin('customers', 'customers.id', '=', 'invoices.customer_id')
+            ->where('invoices.company_id', $companyId)
+            ->where('invoices.is_deleted', false)
+            ->whereNotIn('invoices.status', ['VOID', 'DRAFT'])
+            ->where('invoices.total_vat_amount', '>', 0)
+            ->whereBetween('invoices.invoice_date', [$dateFrom, $dateTo])
+            ->select(
+                'invoices.invoice_date as entry_date',
+                'invoices.invoice_number as entry_number',
+                DB::raw("COALESCE(customers.name, 'Customer') as description"),
+                DB::raw("'VAT Tax' as account_name"),
+                DB::raw('0 as debit_amount'),
+                'invoices.total_vat_amount as credit_amount'
+            )
+            ->orderBy('invoices.invoice_date')
+            ->get();
 
-        $lines = collect($lines);
+        // --- Payments to FTA: one row per settled VAT return ---
+        $paymentLines = DB::table('vat_returns')
+            ->where('company_id', $companyId)
+            ->where('is_deleted', false)
+            ->whereIn('status', ['PAID', 'SUBMITTED'])
+            ->where('amount_paid', '>', 0)
+            ->whereBetween('payment_date', [$dateFrom, $dateTo])
+            ->select(
+                'payment_date as entry_date',
+                'return_number as entry_number',
+                DB::raw("CONCAT('VAT Return Settlement — ', return_number) as description"),
+                DB::raw("'VAT Tax' as account_name"),
+                'amount_paid as debit_amount',
+                DB::raw('0 as credit_amount')
+            )
+            ->orderBy('payment_date')
+            ->get();
 
-        // Output VAT (LIABILITY) - credits = collected, debits = paid to govt / offset
-        $outputLines   = $lines->where('account_type', 'LIABILITY');
-        $outputVAT     = $outputLines->sum('credit_amount'); // collected from customers
-        $vatPaidToGovt = $outputLines->sum('debit_amount');  // settled with FTA
+        // Combine invoice + payment rows into the output section
+        $outputLines = $invoiceLines->concat($paymentLines)->sortBy('entry_date')->values();
 
-        // Input VAT (ASSET) - debits = paid on purchases, credits = offset/recovered
-        $inputLines      = $lines->where('account_type', 'ASSET');
-        $inputVAT        = $inputLines->sum('debit_amount');   // paid on purchases
-        $inputRecovered  = $inputLines->sum('credit_amount');  // offset against output
+        // --- Input VAT: one row per bill that had recoverable VAT ---
+        $inputLines = DB::table('bills')
+            ->leftJoin('vendors', 'vendors.id', '=', 'bills.vendor_id')
+            ->where('bills.company_id', $companyId)
+            ->where('bills.is_deleted', false)
+            ->whereNotIn('bills.status', ['VOID', 'DRAFT'])
+            ->where('bills.total_vat_amount', '>', 0)
+            ->whereBetween('bills.bill_date', [$dateFrom, $dateTo])
+            ->select(
+                'bills.bill_date as entry_date',
+                'bills.bill_number as entry_number',
+                DB::raw("COALESCE(vendors.name, 'Vendor') as description"),
+                DB::raw("'VAT Receivable' as account_name"),
+                'bills.total_vat_amount as debit_amount',
+                DB::raw('0 as credit_amount')
+            )
+            ->orderBy('bills.bill_date')
+            ->get();
 
-        $netVATPayable   = $outputVAT - $inputVAT;
-        $balance         = $netVATPayable - $vatPaidToGovt;
+        $outputVAT     = $invoiceLines->sum('credit_amount');
+        $vatPaidToGovt = $paymentLines->sum('debit_amount');
+        $inputVAT      = $inputLines->sum('debit_amount');
+        $inputRecovered = 0;
+
+        $netVATPayable = $outputVAT - $inputVAT;
+        $balance       = $netVATPayable - $vatPaidToGovt;
 
         return view('reports.vat_ledger', compact(
             'outputLines', 'inputLines',
