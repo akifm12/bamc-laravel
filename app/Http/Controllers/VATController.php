@@ -116,63 +116,120 @@ class VATController extends Controller
     public function pay(Request $request, $id)
     {
         $companyId = session('company_id');
+
         $request->validate([
-            'amount_paid'  => 'required|numeric|min:0',
-            'payment_date' => 'required|date',
+            'payment_source' => 'required|in:bank,owner_card,vat_surplus,split',
+            'payment_date'   => 'required|date',
+            'bank_amount'    => 'nullable|numeric|min:0',
+            'surplus_amount' => 'nullable|numeric|min:0',
         ]);
 
         $vatReturn = DB::table('vat_returns')->where('id', $id)->where('company_id', $companyId)->first();
         if (!$vatReturn) abort(404);
 
-        $payDate    = $request->payment_date;
-        $amount     = (float) $request->amount_paid;
-        $jeYear     = date('Y', strtotime($payDate));
-        $count      = DB::table('journal_entries')->where('company_id', $companyId)->whereYear('entry_date', $jeYear)->count() + 1;
-        $jeNumber   = 'JE-' . $jeYear . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
-        $period     = DB::table('accounting_periods')
-                        ->where('company_id', $companyId)
-                        ->whereDate('start_date', '<=', $payDate)
-                        ->whereDate('end_date', '>=', $payDate)
-                        ->first();
+        $source      = $request->payment_source;
+        $payDate     = $request->payment_date;
+        $netPayable  = (float) $vatReturn->box13_net_payable;
 
-        $jeId = DB::table('journal_entries')->insertGetId([
-            'company_id'   => $companyId,
-            'entry_number' => $jeNumber,
-            'entry_date'   => $payDate,
-            'status'       => 'POSTED',
-            'journal_type' => 'BANK_PAYMENT',
-            'description'  => 'VAT Payment to FTA - ' . $vatReturn->return_number,
-            'currency_code' => 'AED',
-            'exchange_rate' => 1.0,
-            'total_debit'  => $amount,
-            'total_credit' => $amount,
-            'period_id'    => $period?->id,
-            'is_deleted'   => false,
-            'created_at'   => now(),
-            'updated_at'   => now(),
-        ]);
+        // Resolve bank vs surplus amounts from source
+        $bankAmount = 0.0;
+        $surplusAmt = 0.0;
+        if ($source === 'vat_surplus') {
+            $surplusAmt = $netPayable;
+        } elseif ($source === 'split') {
+            $bankAmount = (float) ($request->bank_amount ?? 0);
+            $surplusAmt = (float) ($request->surplus_amount ?? 0);
+        } else {
+            // bank or owner_card — full amount in cash
+            $bankAmount = (float) ($request->bank_amount ?? $netPayable);
+        }
 
-        $vatAcctId  = (int) DB::table('system_settings')->where('company_id', $companyId)->where('key', 'vat_payment_account_id')->value('value') ?: 674;
-        $bankAcctId = (int) DB::table('system_settings')->where('company_id', $companyId)->where('key', 'vat_bank_account_id')->value('value') ?: 647;
-        $bankAcct   = DB::table('accounts')->where('id', $bankAcctId)->value('name') ?? 'Bank Account';
+        if (abs(($bankAmount + $surplusAmt) - $netPayable) > 0.02) {
+            return back()->withErrors(['amount' => sprintf(
+                'Payment amounts (%.2f) must equal net payable (%.2f).', $bankAmount + $surplusAmt, $netPayable
+            )]);
+        }
 
-        DB::table('journal_lines')->insert([
-            ['journal_entry_id' => $jeId, 'company_id' => $companyId, 'account_id' => $vatAcctId,  'line_number' => 1, 'description' => 'VAT Payment to FTA - ' . $vatReturn->return_number, 'debit_amount' => $amount, 'credit_amount' => 0],
-            ['journal_entry_id' => $jeId, 'company_id' => $companyId, 'account_id' => $bankAcctId, 'line_number' => 2, 'description' => $bankAcct, 'debit_amount' => 0, 'credit_amount' => $amount],
-        ]);
+        $payJeId  = null;
+        $jeNumber = null;
+
+        if ($bankAmount > 0) {
+            $jeYear   = date('Y', strtotime($payDate));
+            $count    = DB::table('journal_entries')->where('company_id', $companyId)->whereYear('entry_date', $jeYear)->count() + 1;
+            $jeNumber = 'JE-' . $jeYear . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
+            $period   = DB::table('accounting_periods')
+                            ->where('company_id', $companyId)
+                            ->whereDate('start_date', '<=', $payDate)
+                            ->whereDate('end_date', '>=', $payDate)
+                            ->first();
+
+            $vatAcctId = (int) DB::table('system_settings')->where('company_id', $companyId)->where('key', 'vat_payment_account_id')->value('value') ?: 674;
+
+            if ($source === 'owner_card') {
+                $creditAcctId   = 1733;
+                $creditAcctName = 'Shareholders Current Account';
+                $jeType         = 'GENERAL';
+            } else {
+                $creditAcctId   = (int) DB::table('system_settings')->where('company_id', $companyId)->where('key', 'vat_bank_account_id')->value('value') ?: 647;
+                $creditAcctName = DB::table('accounts')->where('id', $creditAcctId)->value('name') ?? 'Bank Account';
+                $jeType         = 'BANK_PAYMENT';
+            }
+
+            $payJeId = DB::table('journal_entries')->insertGetId([
+                'company_id'    => $companyId,
+                'entry_number'  => $jeNumber,
+                'entry_date'    => $payDate,
+                'status'        => 'POSTED',
+                'journal_type'  => $jeType,
+                'description'   => 'VAT Payment to FTA - ' . $vatReturn->return_number,
+                'currency_code' => 'AED',
+                'exchange_rate' => 1.0,
+                'total_debit'   => $bankAmount,
+                'total_credit'  => $bankAmount,
+                'period_id'     => $period?->id,
+                'is_deleted'    => false,
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ]);
+
+            DB::table('journal_lines')->insert([
+                ['journal_entry_id' => $payJeId, 'company_id' => $companyId, 'account_id' => $vatAcctId,    'line_number' => 1, 'description' => 'VAT Payment to FTA - ' . $vatReturn->return_number, 'debit_amount' => $bankAmount, 'credit_amount' => 0],
+                ['journal_entry_id' => $payJeId, 'company_id' => $companyId, 'account_id' => $creditAcctId, 'line_number' => 2, 'description' => $creditAcctName, 'debit_amount' => 0, 'credit_amount' => $bankAmount],
+            ]);
+        }
+
+        // Build payment note
+        $noteLines = match ($source) {
+            'bank'        => ['Bank transfer: AED ' . number_format($bankAmount, 2)],
+            'owner_card'  => ["Owner's card: AED " . number_format($bankAmount, 2)],
+            'vat_surplus' => ['Offset from VAT Tax surplus: AED ' . number_format($surplusAmt, 2)],
+            'split'       => [
+                'Bank transfer: AED ' . number_format($bankAmount, 2),
+                'Offset from VAT Tax surplus: AED ' . number_format($surplusAmt, 2),
+            ],
+            default => [],
+        };
 
         DB::table('vat_returns')
             ->where('id', $id)
             ->where('company_id', $companyId)
             ->update([
-                'amount_paid'      => $amount,
-                'payment_date'     => $payDate,
-                'status'           => 'PAID',
-                'journal_entry_id' => $jeId,
-                'updated_at'       => now(),
+                'amount_paid'               => $netPayable,
+                'payment_date'              => $payDate,
+                'status'                    => 'PAID',
+                'payment_source'            => $source,
+                'bank_amount'               => $bankAmount,
+                'surplus_used'              => $surplusAmt,
+                'payment_journal_entry_id'  => $payJeId,
+                'notes'                     => implode("\n", $noteLines),
+                'updated_at'                => now(),
             ]);
 
-        return redirect('/vat')->with('success', "Payment recorded. Journal entry {$jeNumber} created.");
+        $msg = $payJeId
+            ? "Payment recorded. Journal entry {$jeNumber} created."
+            : "Payment recorded (offset from VAT surplus — no cash JE needed).";
+
+        return redirect('/vat')->with('success', $msg);
     }
 
     private function getCurrentPeriod(int $cycleStart): array

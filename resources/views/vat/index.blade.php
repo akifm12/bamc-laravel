@@ -189,7 +189,16 @@
                         @if($r?->payment_date)
                             <br><span class="text-gray-400">{{ \Carbon\Carbon::parse($r->payment_date)->format('d M Y') }}</span>
                         @endif
-                        @if($r?->journal_entry_id)
+                        @if($r?->payment_source === 'split')
+                            <br><span class="text-gray-400 text-[10px]">Bank {{ number_format($r->bank_amount, 2) }} + Surplus {{ number_format($r->surplus_used, 2) }}</span>
+                        @elseif($r?->payment_source === 'vat_surplus')
+                            <br><span class="text-gray-400 text-[10px]">From VAT Surplus</span>
+                        @elseif($r?->payment_source === 'owner_card')
+                            <br><span class="text-gray-400 text-[10px]">Owner's Card</span>
+                        @endif
+                        @if($r?->payment_journal_entry_id)
+                            <br><a href="/journals/{{ $r->payment_journal_entry_id }}" class="text-blue-500 hover:text-blue-700">Pay JE →</a>
+                        @elseif($r?->journal_entry_id)
                             <br><a href="/journals/{{ $r->journal_entry_id }}" class="text-blue-500 hover:text-blue-700">JE →</a>
                         @endif
                     @else
@@ -224,20 +233,48 @@
 
             @if($r && strtolower($r->status) !== 'paid' && ($r->box13_net_payable ?? 0) > 0)
             <tr id="pay-modal-{{ $r->id }}" class="hidden bg-green-50 border-b border-green-100">
-                <td colspan="11" class="px-6 py-3">
-                    <form method="POST" action="/vat/{{ $r->id }}/pay" class="flex items-end gap-4">
+                <td colspan="11" class="px-6 py-4">
+                    <form method="POST" action="/vat/{{ $r->id }}/pay" class="flex flex-wrap items-end gap-4">
                         @csrf
+                        @php $netAed = number_format($r->box13_net_payable, 2, '.', ''); @endphp
+
+                        {{-- Payment source --}}
                         <div>
-                            <label class="text-xs text-gray-500 block mb-1">Amount Paid (AED)</label>
-                            <input type="number" name="amount_paid" step="0.01"
-                                value="{{ number_format($r->box13_net_payable, 2, '.', '') }}"
-                                class="border border-gray-200 rounded px-3 py-1.5 text-sm w-40">
+                            <label class="text-xs text-gray-500 block mb-1">Payment Source</label>
+                            <select name="payment_source"
+                                onchange="vatPaySource('{{ $r->id }}', this.value, {{ $r->box13_net_payable }})"
+                                class="border border-gray-200 rounded px-3 py-1.5 text-sm bg-white">
+                                <option value="bank">Bank Transfer</option>
+                                <option value="owner_card">Owner's Card</option>
+                                <option value="vat_surplus">VAT Tax Surplus</option>
+                                <option value="split">Split (Bank + Surplus)</option>
+                            </select>
                         </div>
+
+                        {{-- Bank / card amount (shown for bank, owner_card, split) --}}
+                        <div id="pay-bank-{{ $r->id }}">
+                            <label class="text-xs text-gray-500 block mb-1">
+                                <span id="pay-bank-lbl-{{ $r->id }}">Bank Amount (AED)</span>
+                            </label>
+                            <input type="number" name="bank_amount" step="0.01" id="pay-bank-amt-{{ $r->id }}"
+                                value="{{ $netAed }}"
+                                class="border border-gray-200 rounded px-3 py-1.5 text-sm w-36">
+                        </div>
+
+                        {{-- Surplus amount (hidden by default; shown for vat_surplus, split) --}}
+                        <div id="pay-surplus-{{ $r->id }}" class="hidden">
+                            <label class="text-xs text-gray-500 block mb-1">Surplus Amount (AED)</label>
+                            <input type="number" name="surplus_amount" step="0.01" id="pay-surplus-amt-{{ $r->id }}"
+                                value="0"
+                                class="border border-gray-200 rounded px-3 py-1.5 text-sm w-36">
+                        </div>
+
                         <div>
                             <label class="text-xs text-gray-500 block mb-1">Payment Date</label>
                             <input type="date" name="payment_date" value="{{ date('Y-m-d') }}"
                                 class="border border-gray-200 rounded px-3 py-1.5 text-sm">
                         </div>
+
                         <button type="submit" class="bg-green-700 text-white text-sm px-4 py-1.5 rounded hover:bg-green-800">Confirm</button>
                         <button type="button" onclick="document.getElementById('pay-modal-{{ $r->id }}').classList.add('hidden')"
                             class="text-sm text-gray-400 px-2 py-1.5">Cancel</button>
@@ -256,5 +293,36 @@
         </tbody>
     </table>
 </div>
+
+@push('scripts')
+<script>
+function vatPaySource(id, source, net) {
+    const bankWrap    = document.getElementById('pay-bank-' + id);
+    const surplusWrap = document.getElementById('pay-surplus-' + id);
+    const bankAmt     = document.getElementById('pay-bank-amt-' + id);
+    const surplusAmt  = document.getElementById('pay-surplus-amt-' + id);
+    const bankLbl     = document.getElementById('pay-bank-lbl-' + id);
+
+    if (source === 'vat_surplus') {
+        bankWrap.classList.add('hidden');
+        surplusWrap.classList.remove('hidden');
+        surplusAmt.value = net.toFixed(2);
+        bankAmt.value = '0';
+    } else if (source === 'split') {
+        bankWrap.classList.remove('hidden');
+        surplusWrap.classList.remove('hidden');
+        bankLbl.textContent = 'Bank Amount (AED)';
+        bankAmt.value = net.toFixed(2);
+        surplusAmt.value = '0';
+    } else {
+        bankWrap.classList.remove('hidden');
+        surplusWrap.classList.add('hidden');
+        bankLbl.textContent = source === 'owner_card' ? "Owner's Card Amount (AED)" : 'Bank Amount (AED)';
+        bankAmt.value = net.toFixed(2);
+        surplusAmt.value = '0';
+    }
+}
+</script>
+@endpush
 
 @endsection
