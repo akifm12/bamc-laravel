@@ -152,9 +152,13 @@ class VATController extends Controller
             'updated_at'   => now(),
         ]);
 
+        $vatAcctId  = (int) DB::table('system_settings')->where('company_id', $companyId)->where('key', 'vat_payment_account_id')->value('value') ?: 674;
+        $bankAcctId = (int) DB::table('system_settings')->where('company_id', $companyId)->where('key', 'vat_bank_account_id')->value('value') ?: 647;
+        $bankAcct   = DB::table('accounts')->where('id', $bankAcctId)->value('name') ?? 'Bank Account';
+
         DB::table('journal_lines')->insert([
-            ['journal_entry_id' => $jeId, 'company_id' => $companyId, 'account_id' => 674,  'line_number' => 1, 'description' => 'Output VAT - ' . $vatReturn->return_number, 'debit_amount' => $amount, 'credit_amount' => 0],
-            ['journal_entry_id' => $jeId, 'company_id' => $companyId, 'account_id' => 647,  'line_number' => 2, 'description' => 'RAKBANK Current Account', 'debit_amount' => 0, 'credit_amount' => $amount],
+            ['journal_entry_id' => $jeId, 'company_id' => $companyId, 'account_id' => $vatAcctId,  'line_number' => 1, 'description' => 'VAT Payment to FTA - ' . $vatReturn->return_number, 'debit_amount' => $amount, 'credit_amount' => 0],
+            ['journal_entry_id' => $jeId, 'company_id' => $companyId, 'account_id' => $bankAcctId, 'line_number' => 2, 'description' => $bankAcct, 'debit_amount' => 0, 'credit_amount' => $amount],
         ]);
 
         DB::table('vat_returns')
