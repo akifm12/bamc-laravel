@@ -74,14 +74,8 @@ class CTController extends Controller
             ->first();
         if ($existing) return redirect("/ct/{$existing->id}");
 
-        $period = DB::table('accounting_periods')
-            ->where('company_id', $companyId)
-            ->whereYear('start_date', $year)
-            ->orderBy('start_date')
-            ->first();
-
-        $periodStart = $period ? $period->start_date : "{$year}-01-01";
-        $periodEnd   = $period ? $period->end_date   : "{$year}-12-31";
+        $periodStart = "{$year}-01-01";
+        $periodEnd   = "{$year}-12-31";
 
         $revenue   = $this->getRevenue($companyId, $year);
         $netProfit = $this->getNetProfit($companyId, $year);
@@ -136,16 +130,11 @@ class CTController extends Controller
         $calc          = $this->calcCT($taxableIncome);
         $ctPayable     = max(0, $calc['tax'] - $foreignCredit);
 
-        $period = DB::table('accounting_periods')
-            ->where('company_id', $companyId)
-            ->whereYear('start_date', $year)
-            ->orderBy('start_date')->first();
-
         $returnId = DB::table('ct_returns')->insertGetId([
             'company_id'        => $companyId,
             'fiscal_year'       => $year,
-            'period_start'      => $period->start_date ?? "{$year}-01-01",
-            'period_end'        => $period->end_date   ?? "{$year}-12-31",
+            'period_start'      => "{$year}-01-01",
+            'period_end'        => "{$year}-12-31",
             'return_number'     => 'CT-' . $year . '-' . str_pad(
                 DB::table('ct_returns')->where('company_id', $companyId)->count() + 1, 3, '0', STR_PAD_LEFT
             ),
@@ -263,6 +252,7 @@ class CTController extends Controller
             JOIN accounts a ON a.id = jl.account_id
             WHERE je.company_id = ?
               AND je.status = 'POSTED'
+              AND je.journal_type != 'CLOSING_ENTRY'
               AND a.account_type = 'REVENUE'
               AND EXTRACT(YEAR FROM je.entry_date) = ?
         ", [$companyId, $year]);
