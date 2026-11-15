@@ -25,7 +25,6 @@ class ReportController extends Controller
         $dateTo   = $request->get('date_to',   date('Y-m-d'));
 
         // Balance sheet accounts - cumulative from beginning, including closing entries
-        // Retained Earnings excluded (it's a closing entry construct, not a live TB account)
         $bsRows = DB::select("
             SELECT
                 a.code, a.name, a.account_type,
@@ -42,7 +41,6 @@ class ReportController extends Controller
             ) jl ON jl.account_id = a.id
             WHERE a.company_id = ?
               AND a.account_type IN ('ASSET', 'LIABILITY', 'EQUITY')
-              AND a.code != '5100'
             GROUP BY a.id, a.code, a.name, a.account_type
             HAVING COALESCE(SUM(jl.debit_amount), 0) > 0
                 OR COALESCE(SUM(jl.credit_amount), 0) > 0
@@ -151,7 +149,7 @@ class ReportController extends Controller
         $dateTo    = $request->get('date_to',   date('Y-m-d'));
         $format    = $request->get('format', 'csv');
 
-        // Balance sheet accounts - cumulative, excluding Retained Earnings
+        // Balance sheet accounts - cumulative
         $bsRows = DB::select("
             SELECT
                 a.code, a.name, a.account_type,
@@ -168,7 +166,6 @@ class ReportController extends Controller
             ) jl ON jl.account_id = a.id
             WHERE a.company_id = ?
               AND a.account_type IN ('ASSET', 'LIABILITY', 'EQUITY')
-              AND a.code != '5100'
             GROUP BY a.id, a.code, a.name, a.account_type
             HAVING COALESCE(SUM(jl.debit_amount), 0) > 0
                 OR COALESCE(SUM(jl.credit_amount), 0) > 0
