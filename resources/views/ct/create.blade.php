@@ -7,6 +7,7 @@
 <div class="flex gap-1 mb-5 border-b border-gray-200">
     <a href="/ct" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">CT Returns</a>
     <a href="/ct/sbr" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">Small Business Relief</a>
+    <span class="px-4 py-2 text-sm font-medium border-b-2 border-green-700 text-green-700">{{ $year }} Return</span>
 </div>
 
 <form method="POST" action="/ct" id="ct-form">
@@ -46,9 +47,9 @@
 <div class="bg-white rounded-lg border border-gray-200 p-5 mb-4">
     <div class="flex items-start gap-3">
         <input type="checkbox" name="sbr_elected" id="sbr_elected" value="1"
-            {{ $revenue <= 3000000 && $revenue > 0 ? '' : 'disabled' }}
+            @if($revenue > 3000000 || $revenue <= 0) disabled @endif
             onchange="toggleSBR(this.checked)"
-            class="mt-1 rounded">
+            class="mt-1 rounded cursor-pointer">
         <div>
             <label for="sbr_elected" class="text-sm font-semibold text-gray-700 cursor-pointer">
                 Elect Small Business Relief (SBR)
