@@ -19,8 +19,7 @@ class CTController extends Controller
 
         $company = DB::table('companies')->find($companyId);
 
-        // UAE CT effective from 1 June 2023; first full fiscal year filings from 2024
-        $firstYear   = 2024;
+        $firstYear   = 2023;
         $currentYear = (int) date('Y');
 
         $years = range($firstYear, $currentYear);
