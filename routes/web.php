@@ -139,6 +139,7 @@ Route::middleware(['auth'])->group(function () {
 	Route::get('/ct/{id}',         [CTController::class, 'show'])->name('ct.show');
 	Route::post('/ct/{id}/submit', [CTController::class, 'submit'])->name('ct.submit');
 	Route::post('/ct/{id}/pay',    [CTController::class, 'pay'])->name('ct.pay');
+	Route::post('/ct/{id}/delete', [CTController::class, 'destroy'])->name('ct.destroy');
 
 	Route::get('/vat', [VATController::class, 'index'])->name('vat.index');
 	Route::get('/vat/create', [VATController::class, 'create'])->name('vat.create');

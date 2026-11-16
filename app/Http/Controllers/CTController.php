@@ -188,6 +188,16 @@ class CTController extends Controller
         return view('ct.show', compact('return', 'adjustments', 'company'));
     }
 
+    public function destroy($id)
+    {
+        $companyId = session('company_id');
+        DB::table('ct_returns')
+            ->where('id', $id)->where('company_id', $companyId)->where('status', 'DRAFT')
+            ->update(['is_deleted' => true, 'updated_at' => now()]);
+        DB::table('ct_adjustments')->where('ct_return_id', $id)->delete();
+        return redirect('/ct')->with('success', 'Draft deleted. You can now re-file.');
+    }
+
     public function submit(Request $request, $id)
     {
         $companyId = session('company_id');

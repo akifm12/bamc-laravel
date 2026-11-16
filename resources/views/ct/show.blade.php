@@ -178,6 +178,13 @@
         class="bg-blue-600 text-white text-sm px-4 py-2 rounded hover:bg-blue-700">
         📤 Mark as Filed
     </button>
+    <form method="POST" action="/ct/{{ $return->id }}/delete" class="inline"
+          onsubmit="return confirm('Delete this draft and start over?')">
+        @csrf
+        <button type="submit" class="bg-red-100 text-red-700 text-sm px-4 py-2 rounded hover:bg-red-200">
+            🗑 Delete Draft
+        </button>
+    </form>
     @endif
 
     @if(in_array($return->status, ['DRAFT', 'FILED']) && $return->ct_payable > 0)
