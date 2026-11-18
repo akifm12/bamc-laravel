@@ -65,44 +65,107 @@ class VATController extends Controller
         }
         $allPeriods = array_reverse($allPeriods); // newest first
 
-        // Two aggregate queries - invoices and bills - grouped by month
-        $invoicesByMonth = DB::table('invoices')
+        // Sales from invoices (subtotal only — no VAT)
+        $salesByMonth = DB::table('invoices')
             ->where('company_id', $companyId)
             ->where('is_deleted', false)
             ->whereNotIn('status', ['VOID', 'DRAFT'])
-            ->selectRaw("DATE_TRUNC('month', invoice_date::date)::date AS month, SUM(subtotal) AS sales, SUM(total_vat_amount) AS output_vat")
+            ->selectRaw("DATE_TRUNC('month', invoice_date::date)::date AS month, SUM(subtotal) AS sales")
             ->groupByRaw("DATE_TRUNC('month', invoice_date::date)")
             ->get()
             ->keyBy(fn($r) => \Carbon\Carbon::parse($r->month)->format('Y-m'));
 
-        $billsByMonth = DB::table('bills')
+        // Purchases from bills (subtotal only — no VAT)
+        $purchasesByMonth = DB::table('bills')
             ->where('company_id', $companyId)
             ->where('is_deleted', false)
             ->whereNotIn('status', ['VOID', 'DRAFT'])
-            ->selectRaw("DATE_TRUNC('month', bill_date::date)::date AS month, SUM(subtotal) AS purchases, SUM(total_vat_amount) AS input_vat")
+            ->selectRaw("DATE_TRUNC('month', bill_date::date)::date AS month, SUM(subtotal) AS purchases")
             ->groupByRaw("DATE_TRUNC('month', bill_date::date)")
             ->get()
             ->keyBy(fn($r) => \Carbon\Carbon::parse($r->month)->format('Y-m'));
 
+        // Output VAT from journal lines (credits to VAT output account) — same principle as trial balance
+        $vatOutputAcctId = $company->default_vat_output_id;
+        $outputVatByMonth = DB::table('journal_lines as jl')
+            ->join('journal_entries as je', 'je.id', '=', 'jl.journal_entry_id')
+            ->where('je.company_id', $companyId)
+            ->where('je.is_deleted', false)
+            ->where('je.status', 'POSTED')
+            ->where('je.journal_type', '!=', 'CLOSING_ENTRY')
+            ->where('jl.account_id', $vatOutputAcctId)
+            ->where('jl.credit_amount', '>', 0)
+            ->selectRaw("DATE_TRUNC('month', je.entry_date::date)::date AS month, SUM(jl.credit_amount) AS output_vat")
+            ->groupByRaw("DATE_TRUNC('month', je.entry_date::date)")
+            ->get()
+            ->keyBy(fn($r) => \Carbon\Carbon::parse($r->month)->format('Y-m'));
+
+        // Input VAT from journal lines (debits to VAT input account) — same principle as trial balance
+        $vatInputAcctId = $company->default_vat_input_id;
+        $inputVatByMonth = DB::table('journal_lines as jl')
+            ->join('journal_entries as je', 'je.id', '=', 'jl.journal_entry_id')
+            ->where('je.company_id', $companyId)
+            ->where('je.is_deleted', false)
+            ->where('je.status', 'POSTED')
+            ->where('je.journal_type', '!=', 'CLOSING_ENTRY')
+            ->where('jl.account_id', $vatInputAcctId)
+            ->where('jl.debit_amount', '>', 0)
+            ->selectRaw("DATE_TRUNC('month', je.entry_date::date)::date AS month, SUM(jl.debit_amount) AS input_vat")
+            ->groupByRaw("DATE_TRUNC('month', je.entry_date::date)")
+            ->get()
+            ->keyBy(fn($r) => \Carbon\Carbon::parse($r->month)->format('Y-m'));
+
+        // VAT Penalties & Fines totals by period (debits to the penalty expense account)
+        $vatPenaltyAcctId = DB::table('accounts')
+            ->where('company_id', $companyId)
+            ->where('code', '4307')
+            ->value('id');
+
+        $penaltiesByPeriod = DB::table('journal_entries as je')
+            ->join('journal_lines as jl', 'jl.journal_entry_id', '=', 'je.id')
+            ->where('je.company_id', $companyId)
+            ->where('je.is_deleted', false)
+            ->where('je.status', 'POSTED')
+            ->where('jl.account_id', $vatPenaltyAcctId)
+            ->where('jl.debit_amount', '>', 0)
+            ->selectRaw("je.entry_date::date AS entry_date, SUM(jl.debit_amount) AS penalty_total")
+            ->groupByRaw("je.entry_date::date")
+            ->get();
+
         // Roll monthly data into each quarter
-        $history = collect($allPeriods)->map(function ($period) use ($invoicesByMonth, $billsByMonth, $returns) {
+        $history = collect($allPeriods)->map(function ($period) use ($salesByMonth, $purchasesByMonth, $outputVatByMonth, $inputVatByMonth, $returns, $penaltiesByPeriod) {
             $from = \Carbon\Carbon::parse($period['from']);
+            $to   = \Carbon\Carbon::parse($period['to']);
             $months = [
                 $from->format('Y-m'),
                 $from->copy()->addMonth()->format('Y-m'),
                 $from->copy()->addMonths(2)->format('Y-m'),
             ];
 
-            $sales      = collect($months)->sum(fn($m) => $invoicesByMonth->get($m)->sales ?? 0);
-            $outputVAT  = collect($months)->sum(fn($m) => $invoicesByMonth->get($m)->output_vat ?? 0);
-            $purchases  = collect($months)->sum(fn($m) => $billsByMonth->get($m)->purchases ?? 0);
-            $inputVAT   = collect($months)->sum(fn($m) => $billsByMonth->get($m)->input_vat ?? 0);
+            $sales      = collect($months)->sum(fn($m) => $salesByMonth->get($m)->sales ?? 0);
+            $outputVAT  = collect($months)->sum(fn($m) => $outputVatByMonth->get($m)->output_vat ?? 0);
+            $purchases  = collect($months)->sum(fn($m) => $purchasesByMonth->get($m)->purchases ?? 0);
+            $inputVAT   = collect($months)->sum(fn($m) => $inputVatByMonth->get($m)->input_vat ?? 0);
             $netDue     = $outputVAT - $inputVAT;
             $vatReturn  = $returns->get($period['from']);
             $amountPaid = $vatReturn->amount_paid ?? 0;
-            $balance    = ($vatReturn->box13_net_payable ?? $netDue) - $amountPaid;
 
-            return array_merge($period, compact('sales', 'outputVAT', 'purchases', 'inputVAT', 'netDue', 'vatReturn', 'amountPaid', 'balance'));
+            // Penalties incurred between period end and 90 days after (late-payment window)
+            $penaltyWindowEnd = $to->copy()->addDays(90)->toDateString();
+            $periodPenalties  = $penaltiesByPeriod
+                ->filter(fn($p) => $p->entry_date >= $period['to'] && $p->entry_date <= $penaltyWindowEnd)
+                ->sum('penalty_total');
+
+            $penaltyPaid = (float) ($vatReturn->penalty_amount_paid ?? 0);
+            // Penalties paid separately as bills are NOT included in the VAT return balance
+            $penaltyForBalance = $penaltyPaid; // only what was explicitly recorded on this return
+            // Balance = VAT net payable + explicitly-recorded penalties - total paid
+            $balance     = ($vatReturn->box13_net_payable ?? $netDue) + $penaltyForBalance - $amountPaid;
+
+            return array_merge($period, compact(
+                'sales', 'outputVAT', 'purchases', 'inputVAT', 'netDue',
+                'vatReturn', 'amountPaid', 'balance', 'periodPenalties', 'penaltyPaid'
+            ));
         });
 
         return view('vat.index', compact(
@@ -118,10 +181,11 @@ class VATController extends Controller
         $companyId = session('company_id');
 
         $request->validate([
-            'payment_source' => 'required|in:bank,owner_card,vat_surplus,split',
-            'payment_date'   => 'required|date',
-            'bank_amount'    => 'nullable|numeric|min:0',
-            'surplus_amount' => 'nullable|numeric|min:0',
+            'payment_source'  => 'required|in:bank,owner_card,vat_surplus,split',
+            'payment_date'    => 'required|date',
+            'bank_amount'     => 'nullable|numeric|min:0',
+            'surplus_amount'  => 'nullable|numeric|min:0',
+            'penalty_amount'  => 'nullable|numeric|min:0',
         ]);
 
         $vatReturn = DB::table('vat_returns')->where('id', $id)->where('company_id', $companyId)->first();
@@ -130,6 +194,8 @@ class VATController extends Controller
         $source      = $request->payment_source;
         $payDate     = $request->payment_date;
         $netPayable  = (float) $vatReturn->box13_net_payable;
+        $penaltyAmt  = (float) ($request->penalty_amount ?? 0);
+        $totalDue    = $netPayable + $penaltyAmt;
 
         // Resolve bank vs surplus amounts from source
         $bankAmount = 0.0;
@@ -140,13 +206,13 @@ class VATController extends Controller
             $bankAmount = (float) ($request->bank_amount ?? 0);
             $surplusAmt = (float) ($request->surplus_amount ?? 0);
         } else {
-            // bank or owner_card — full amount in cash
-            $bankAmount = (float) ($request->bank_amount ?? $netPayable);
+            // bank or owner_card — full cash amount = VAT + penalties
+            $bankAmount = (float) ($request->bank_amount ?? $totalDue);
         }
 
-        if (abs(($bankAmount + $surplusAmt) - $netPayable) > 0.02) {
+        if (abs(($bankAmount + $surplusAmt) - $totalDue) > 0.02) {
             return back()->withErrors(['amount' => sprintf(
-                'Payment amounts (%.2f) must equal net payable (%.2f).', $bankAmount + $surplusAmt, $netPayable
+                'Payment amounts (%.2f) must equal total due (%.2f).', $bankAmount + $surplusAmt, $totalDue
             )]);
         }
 
@@ -163,10 +229,20 @@ class VATController extends Controller
                             ->whereDate('end_date', '>=', $payDate)
                             ->first();
 
-            $vatAcctId = (int) DB::table('system_settings')->where('company_id', $companyId)->where('key', 'vat_payment_account_id')->value('value') ?: 674;
+            // VAT Tax clearing account (what gets debited for the VAT portion)
+            $vatAcctId = (int) DB::table('accounts')
+                ->where('company_id', $companyId)
+                ->where('code', '2301')
+                ->value('id') ?: 674;
+
+            // Penalty clearing account: the SCA account used in penalty JEs (code 5300)
+            $penaltyClearingAcctId = (int) DB::table('accounts')
+                ->where('company_id', $companyId)
+                ->where('code', '5300')
+                ->value('id');
 
             if ($source === 'owner_card') {
-                $creditAcctId   = 1733;
+                $creditAcctId   = $penaltyClearingAcctId ?: 1733;
                 $creditAcctName = 'Shareholders Current Account';
                 $jeType         = 'GENERAL';
             } else {
@@ -192,10 +268,48 @@ class VATController extends Controller
                 'updated_at'    => now(),
             ]);
 
-            DB::table('journal_lines')->insert([
-                ['journal_entry_id' => $payJeId, 'company_id' => $companyId, 'account_id' => $vatAcctId,    'line_number' => 1, 'description' => 'VAT Payment to FTA - ' . $vatReturn->return_number, 'debit_amount' => $bankAmount, 'credit_amount' => 0],
-                ['journal_entry_id' => $payJeId, 'company_id' => $companyId, 'account_id' => $creditAcctId, 'line_number' => 2, 'description' => $creditAcctName, 'debit_amount' => 0, 'credit_amount' => $bankAmount],
-            ]);
+            $lines = [];
+            $lineNo = 1;
+
+            // VAT Tax debit line (clears 2301 liability)
+            $vatLineAmt = min($netPayable, $bankAmount);
+            if ($vatLineAmt > 0) {
+                $lines[] = [
+                    'journal_entry_id' => $payJeId,
+                    'company_id'       => $companyId,
+                    'account_id'       => $vatAcctId,
+                    'line_number'      => $lineNo++,
+                    'description'      => 'VAT payment to FTA - ' . $vatReturn->return_number,
+                    'debit_amount'     => $vatLineAmt,
+                    'credit_amount'    => 0,
+                ];
+            }
+
+            // Penalty debit line (clears SCA liability created by penalty JEs)
+            if ($penaltyAmt > 0 && $penaltyClearingAcctId) {
+                $lines[] = [
+                    'journal_entry_id' => $payJeId,
+                    'company_id'       => $companyId,
+                    'account_id'       => $penaltyClearingAcctId,
+                    'line_number'      => $lineNo++,
+                    'description'      => 'FTA penalties - ' . $vatReturn->return_number,
+                    'debit_amount'     => $penaltyAmt,
+                    'credit_amount'    => 0,
+                ];
+            }
+
+            // Credit line (bank / SCA) for total outflow
+            $lines[] = [
+                'journal_entry_id' => $payJeId,
+                'company_id'       => $companyId,
+                'account_id'       => $creditAcctId,
+                'line_number'      => $lineNo++,
+                'description'      => $creditAcctName,
+                'debit_amount'     => 0,
+                'credit_amount'    => $bankAmount,
+            ];
+
+            DB::table('journal_lines')->insert($lines);
         }
 
         // Build payment note
@@ -209,17 +323,21 @@ class VATController extends Controller
             ],
             default => [],
         };
+        if ($penaltyAmt > 0) {
+            $noteLines[] = 'Penalties: AED ' . number_format($penaltyAmt, 2);
+        }
 
         DB::table('vat_returns')
             ->where('id', $id)
             ->where('company_id', $companyId)
             ->update([
-                'amount_paid'               => $netPayable,
+                'amount_paid'               => $bankAmount + $surplusAmt,
                 'payment_date'              => $payDate,
                 'status'                    => 'PAID',
                 'payment_source'            => $source,
                 'bank_amount'               => $bankAmount,
                 'surplus_used'              => $surplusAmt,
+                'penalty_amount_paid'       => $penaltyAmt,
                 'payment_journal_entry_id'  => $payJeId,
                 'notes'                     => implode("\n", $noteLines),
                 'updated_at'                => now(),
@@ -392,34 +510,56 @@ class VATController extends Controller
 
     private function calculateVATBoxes(int $companyId, string $dateFrom, string $dateTo): array
     {
-        // Output VAT - from invoice VAT amounts
-        $outputVAT = DB::table('invoices')
+        $company = DB::table('companies')->find($companyId);
+
+        // Standard sales from invoices (subtotal)
+        $invoiceData = DB::table('invoices')
             ->where('company_id', $companyId)
             ->where('is_deleted', false)
             ->where('status', '!=', 'VOID')
             ->whereBetween('invoice_date', [$dateFrom, $dateTo])
-            ->selectRaw('
-                COALESCE(SUM(subtotal), 0) as standard_sales,
-                COALESCE(SUM(total_vat_amount), 0) as output_vat
-            ')
+            ->selectRaw('COALESCE(SUM(subtotal), 0) as standard_sales')
             ->first();
 
-        // Input VAT - from bill VAT amounts
-        $inputVAT = DB::table('bills')
+        // Standard purchases from bills (subtotal)
+        $billData = DB::table('bills')
             ->where('company_id', $companyId)
             ->where('is_deleted', false)
             ->where('status', '!=', 'VOID')
             ->whereBetween('bill_date', [$dateFrom, $dateTo])
-            ->selectRaw('
-                COALESCE(SUM(subtotal), 0) as standard_purchases,
-                COALESCE(SUM(total_vat_amount), 0) as input_vat
-            ')
+            ->selectRaw('COALESCE(SUM(subtotal), 0) as standard_purchases')
             ->first();
 
-        $standardSales     = $outputVAT->standard_sales ?? 0;
-        $outputVatAmount   = $outputVAT->output_vat ?? 0;
-        $standardPurchases = $inputVAT->standard_purchases ?? 0;
-        $inputVatAmount    = $inputVAT->input_vat ?? 0;
+        // Output VAT from journal lines — same principle as trial balance
+        $outputVatData = DB::table('journal_lines as jl')
+            ->join('journal_entries as je', 'je.id', '=', 'jl.journal_entry_id')
+            ->where('je.company_id', $companyId)
+            ->where('je.is_deleted', false)
+            ->where('je.status', 'POSTED')
+            ->where('je.journal_type', '!=', 'CLOSING_ENTRY')
+            ->where('jl.account_id', $company->default_vat_output_id)
+            ->where('jl.credit_amount', '>', 0)
+            ->whereBetween('je.entry_date', [$dateFrom, $dateTo])
+            ->selectRaw('COALESCE(SUM(jl.credit_amount), 0) as output_vat')
+            ->first();
+
+        // Input VAT from journal lines — same principle as trial balance
+        $inputVatData = DB::table('journal_lines as jl')
+            ->join('journal_entries as je', 'je.id', '=', 'jl.journal_entry_id')
+            ->where('je.company_id', $companyId)
+            ->where('je.is_deleted', false)
+            ->where('je.status', 'POSTED')
+            ->where('je.journal_type', '!=', 'CLOSING_ENTRY')
+            ->where('jl.account_id', $company->default_vat_input_id)
+            ->where('jl.debit_amount', '>', 0)
+            ->whereBetween('je.entry_date', [$dateFrom, $dateTo])
+            ->selectRaw('COALESCE(SUM(jl.debit_amount), 0) as input_vat')
+            ->first();
+
+        $standardSales     = $invoiceData->standard_sales ?? 0;
+        $outputVatAmount   = $outputVatData->output_vat ?? 0;
+        $standardPurchases = $billData->standard_purchases ?? 0;
+        $inputVatAmount    = $inputVatData->input_vat ?? 0;
         $netVat            = $outputVatAmount - $inputVatAmount;
 
         return compact(
