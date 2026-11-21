@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <style>
-    @page { margin: 1in; }
+    @page { margin: 2cm; }
     body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; color: #1f2937; margin: 0; padding: 0; }
 
     /* ── Clearfix ── */
@@ -13,7 +13,8 @@
     .header { border-bottom: 2px solid #15803d; padding-bottom: 14px; margin-bottom: 20px; }
     .header-left  { float: left; width: 55%; }
     .header-right { float: right; width: 40%; text-align: right; }
-    .company-name { font-size: 17px; font-weight: bold; color: #15803d; }
+    .logo         { max-height: 48px; max-width: 160px; margin-bottom: 4px; }
+    .company-name { font-size: 17px; font-weight: bold; color: #1d4ed8; }
     .company-sub  { font-size: 9px; color: #6b7280; margin-top: 2px; }
     .doc-title    { font-size: 15px; font-weight: bold; color: #1f2937; }
     .doc-sub      { font-size: 9px; color: #6b7280; margin-top: 2px; }
@@ -55,6 +56,7 @@
     <!-- Header -->
     <div class="header cf">
         <div class="header-left">
+            @if($logoBase64)<img src="{{ $logoBase64 }}" class="logo" alt="Logo"><br>@endif
             <div class="company-name">{{ $company->name ?? 'Company' }}</div>
             @if(!empty($company->trn))<div class="company-sub">TRN: {{ $company->trn }}</div>@endif
             @if(!empty($company->address))<div class="company-sub">{{ $company->address }}</div>@endif

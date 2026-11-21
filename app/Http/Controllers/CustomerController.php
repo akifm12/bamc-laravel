@@ -178,10 +178,20 @@ public function statementPdf(Request $request, $id)
     $dateTo   = $request->get('date_to',   date('Y-m-d'));
     $company  = DB::table('companies')->find($companyId);
 
+    // Encode logo as base64 for Dompdf (file path embedding)
+    $logoBase64 = null;
+    if (!empty($company->logo_path)) {
+        $logoFile = public_path($company->logo_path);
+        if (file_exists($logoFile)) {
+            $mime = mime_content_type($logoFile);
+            $logoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoFile));
+        }
+    }
+
     [$transactions, $openingBalance, $closingBalance] = $this->buildStatement($id, $companyId, $dateFrom, $dateTo);
 
     $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('customers.statement_pdf', compact(
-        'customer', 'company', 'transactions', 'openingBalance', 'closingBalance', 'dateFrom', 'dateTo'
+        'customer', 'company', 'transactions', 'openingBalance', 'closingBalance', 'dateFrom', 'dateTo', 'logoBase64'
     ))->setPaper('a4', 'portrait');
 
     $filename = 'Statement_' . preg_replace('/[^A-Za-z0-9]/', '_', $customer->name) . '_' . $dateFrom . '_' . $dateTo . '.pdf';
