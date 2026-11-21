@@ -32,7 +32,7 @@
         <div class="ml-auto flex gap-2">
             <a href="/customers/{{ $customer->id }}/statement/csv?date_from={{ $dateFrom }}&date_to={{ $dateTo }}"
                 class="text-sm text-gray-600 border border-gray-200 px-3 py-1.5 rounded hover:bg-gray-50 flex items-center gap-1">
-                ⬇ CSV
+                ⬇ Excel
             </a>
             <a href="/customers/{{ $customer->id }}/statement/pdf?date_from={{ $dateFrom }}&date_to={{ $dateTo }}"
                 target="_blank"

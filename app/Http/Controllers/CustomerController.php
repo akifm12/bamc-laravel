@@ -206,41 +206,148 @@ public function statementCsv(Request $request, $id)
 
     $dateFrom = $request->get('date_from', date('Y-01-01'));
     $dateTo   = $request->get('date_to',   date('Y-m-d'));
+    $company  = DB::table('companies')->find($companyId);
 
     [$transactions, $openingBalance, $closingBalance] = $this->buildStatement($id, $companyId, $dateFrom, $dateTo);
 
-    $filename = 'Statement_' . preg_replace('/[^A-Za-z0-9]/', '_', $customer->name) . '_' . $dateFrom . '_' . $dateTo . '.csv';
+    $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setTitle('Statement');
 
-    $headers = [
-        'Content-Type'        => 'text/csv',
-        'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-    ];
+    // ── Row 1: Company name (large, bold, blue) ──
+    $sheet->setCellValue('A1', $company->name ?? 'Company');
+    $sheet->mergeCells('A1:G1');
+    $sheet->getStyle('A1')->applyFromArray([
+        'font' => ['bold' => true, 'size' => 16, 'color' => ['rgb' => '1d4ed8']],
+    ]);
+    $sheet->getRowDimension(1)->setRowHeight(24);
 
-    $callback = function () use ($transactions, $openingBalance, $closingBalance, $dateFrom, $customer) {
-        $f = fopen('php://output', 'w');
-        fputcsv($f, ['Statement of Account']);
-        fputcsv($f, ['Customer:', $customer->name]);
-        fputcsv($f, ['Period:', $dateFrom . ' to ' . request()->get('date_to', date('Y-m-d'))]);
-        fputcsv($f, []);
-        fputcsv($f, ['Date', 'Type', 'Reference', 'Description', 'Debit (AED)', 'Credit (AED)', 'Balance (AED)']);
-        fputcsv($f, [$dateFrom, '', '', 'Opening Balance', '', '', number_format($openingBalance, 2)]);
-        foreach ($transactions as $txn) {
-            fputcsv($f, [
-                $txn->date,
-                $txn->type,
-                $txn->reference,
-                $txn->description,
-                $txn->debit > 0 ? number_format($txn->debit, 2) : '',
-                $txn->credit > 0 ? number_format($txn->credit, 2) : '',
-                number_format($txn->balance, 2),
+    // ── Row 2: Statement title ──
+    $sheet->setCellValue('A2', 'Statement of Account');
+    $sheet->mergeCells('A2:G2');
+    $sheet->getStyle('A2')->applyFromArray([
+        'font' => ['bold' => true, 'size' => 12, 'color' => ['rgb' => '374151']],
+    ]);
+
+    // ── Row 3: Customer & period ──
+    $sheet->setCellValue('A3', 'Customer: ' . $customer->name);
+    $sheet->setCellValue('E3', 'Period: ' . \Carbon\Carbon::parse($dateFrom)->format('d M Y') . ' – ' . \Carbon\Carbon::parse($dateTo)->format('d M Y'));
+    $sheet->mergeCells('A3:D3');
+    $sheet->mergeCells('E3:G3');
+    $sheet->getStyle('A3:G3')->applyFromArray([
+        'font' => ['size' => 10, 'color' => ['rgb' => '6b7280']],
+    ]);
+
+    // ── Row 4: blank ──
+    $sheet->getRowDimension(4)->setRowHeight(6);
+
+    // ── Row 5: Column headers ──
+    $headers = ['Date', 'Type', 'Reference', 'Description', 'Debit (AED)', 'Credit (AED)', 'Balance (AED)'];
+    foreach ($headers as $col => $label) {
+        $cell = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col + 1) . '5';
+        $sheet->setCellValue($cell, $label);
+    }
+    $sheet->getStyle('A5:G5')->applyFromArray([
+        'font'    => ['bold' => true, 'color' => ['rgb' => 'ffffff'], 'size' => 10],
+        'fill'    => ['fillType' => 'solid', 'startColor' => ['rgb' => '1f2937']],
+        'alignment' => ['horizontal' => 'left'],
+    ]);
+    $sheet->getStyle('E5:G5')->getAlignment()->setHorizontal('right');
+    $sheet->getRowDimension(5)->setRowHeight(18);
+
+    // ── Data rows (starting row 6) ──
+    $row = 6;
+
+    // Opening balance row
+    $sheet->setCellValue('A' . $row, \Carbon\Carbon::parse($dateFrom)->format('d M Y'));
+    $sheet->setCellValue('D' . $row, 'Opening Balance');
+    $sheet->setCellValue('G' . $row, $openingBalance);
+    $sheet->getStyle('A' . $row . ':G' . $row)->applyFromArray([
+        'fill' => ['fillType' => 'solid', 'startColor' => ['rgb' => 'eff6ff']],
+        'font' => ['italic' => true],
+    ]);
+    $row++;
+
+    foreach ($transactions as $i => $txn) {
+        $sheet->setCellValue('A' . $row, \Carbon\Carbon::parse($txn->date)->format('d M Y'));
+        $sheet->setCellValue('B' . $row, $txn->type);
+        $sheet->setCellValue('C' . $row, $txn->reference);
+        $sheet->setCellValue('D' . $row, $txn->description);
+        $sheet->setCellValue('E' . $row, $txn->debit  > 0 ? $txn->debit  : '');
+        $sheet->setCellValue('F' . $row, $txn->credit > 0 ? $txn->credit : '');
+        $sheet->setCellValue('G' . $row, $txn->balance);
+
+        // Alternate row shading
+        if ($i % 2 === 1) {
+            $sheet->getStyle('A' . $row . ':G' . $row)->applyFromArray([
+                'fill' => ['fillType' => 'solid', 'startColor' => ['rgb' => 'f9fafb']],
             ]);
         }
-        fputcsv($f, []);
-        fputcsv($f, ['', '', '', 'Closing Balance', '', '', number_format($closingBalance, 2)]);
-        fclose($f);
-    };
+        // Credit amounts in green
+        if ($txn->credit > 0) {
+            $sheet->getStyle('F' . $row)->applyFromArray([
+                'font' => ['color' => ['rgb' => '15803d']],
+            ]);
+        }
+        // Negative balance (Cr) in green
+        if ($txn->balance < 0) {
+            $sheet->getStyle('G' . $row)->applyFromArray([
+                'font' => ['color' => ['rgb' => '15803d']],
+            ]);
+        }
+        $row++;
+    }
 
-    return response()->stream($callback, 200, $headers);
+    // Closing balance row
+    $sheet->setCellValue('D' . $row, 'Closing Balance');
+    $sheet->setCellValue('E' . $row, $transactions->sum('debit'));
+    $sheet->setCellValue('F' . $row, $transactions->sum('credit'));
+    $sheet->setCellValue('G' . $row, $closingBalance);
+    $sheet->getStyle('A' . $row . ':G' . $row)->applyFromArray([
+        'fill' => ['fillType' => 'solid', 'startColor' => ['rgb' => 'f3f4f6']],
+        'font' => ['bold' => true],
+        'borders' => ['top' => ['borderStyle' => 'medium', 'color' => ['rgb' => '374151']]],
+    ]);
+
+    // ── Number format for numeric columns ──
+    $numFmt = '#,##0.00';
+    $lastRow = $row;
+    $sheet->getStyle('E6:G' . $lastRow)->getNumberFormat()->setFormatCode($numFmt);
+
+    // ── Column widths ──
+    $sheet->getColumnDimension('A')->setWidth(14);  // Date
+    $sheet->getColumnDimension('B')->setWidth(10);  // Type
+    $sheet->getColumnDimension('C')->setWidth(22);  // Reference
+    $sheet->getColumnDimension('D')->setWidth(36);  // Description
+    $sheet->getColumnDimension('E')->setWidth(16);  // Debit
+    $sheet->getColumnDimension('F')->setWidth(16);  // Credit
+    $sheet->getColumnDimension('G')->setWidth(18);  // Balance
+
+    // Right-align numeric columns in data rows
+    $sheet->getStyle('E6:G' . $lastRow)->getAlignment()->setHorizontal('right');
+
+    // ── Thin border around the entire data table ──
+    $sheet->getStyle('A5:G' . $lastRow)->applyFromArray([
+        'borders' => ['allBorders' => ['borderStyle' => 'thin', 'color' => ['rgb' => 'e5e7eb']]],
+    ]);
+
+    // ── Generated note ──
+    $noteRow = $lastRow + 2;
+    $sheet->setCellValue('A' . $noteRow, 'Generated: ' . date('d M Y H:i'));
+    $sheet->getStyle('A' . $noteRow)->applyFromArray([
+        'font' => ['size' => 8, 'color' => ['rgb' => '9ca3af'], 'italic' => true],
+    ]);
+
+    // ── Write to temp file and stream ──
+    $tmpFile  = tempnam(sys_get_temp_dir(), 'stmt_') . '.xlsx';
+    $writer   = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+    $writer->save($tmpFile);
+
+    $filename = 'Statement_' . preg_replace('/[^A-Za-z0-9]/', '_', $customer->name) . '_' . $dateFrom . '_' . $dateTo . '.xlsx';
+
+    return response()->download($tmpFile, $filename, [
+        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ])->deleteFileAfterSend(true);
 }
 
 private function buildStatement(int $customerId, int $companyId, string $dateFrom, string $dateTo): array
