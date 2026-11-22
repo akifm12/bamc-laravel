@@ -206,7 +206,10 @@ class VATController extends Controller
 
         $source      = $request->payment_source;
         $payDate     = $request->payment_date;
-        $netPayable  = (float) $vatReturn->box13_net_payable;
+        // Use remaining balance, not the original filed amount
+        $netPayable  = max(0.0, (float) $vatReturn->box13_net_payable
+            - (float) ($vatReturn->amount_paid ?? 0)
+            + (float) ($vatReturn->penalty_amount_paid ?? 0));
         $penaltyAmt  = (float) ($request->penalty_amount ?? 0);
         $totalDue    = $netPayable + $penaltyAmt;
 

@@ -259,7 +259,7 @@
             <tr id="pay-modal-{{ $r->id }}" class="hidden bg-green-50 border-b border-green-100">
                 <td colspan="11" class="px-6 py-4">
                     @php
-                        $vatAed      = number_format($r->box13_net_payable, 2, '.', '');
+                        $vatAed      = number_format($balance, 2, '.', ''); // balance = what's still owed on this return
                         $penAed      = '0.00'; // user enters penalty amount; total outstanding shown in the banner above
                         $totalAed    = $vatAed;
                     @endphp
@@ -268,7 +268,7 @@
 
                         {{-- VAT amount display (read-only) --}}
                         <div>
-                            <label class="text-xs text-gray-500 block mb-1">VAT Payable (AED)</label>
+                            <label class="text-xs text-gray-500 block mb-1">VAT Balance (AED)</label>
                             <input type="text" value="{{ $vatAed }}" readonly
                                 class="border border-gray-100 bg-gray-50 rounded px-3 py-1.5 text-sm w-32 text-gray-500 cursor-default">
                         </div>
@@ -284,7 +284,7 @@
                             <input type="number" name="penalty_amount" step="0.01"
                                 id="pay-penalty-{{ $r->id }}"
                                 value="{{ $penAed }}"
-                                oninput="vatRecalcTotal('{{ $r->id }}', {{ $r->box13_net_payable }})"
+                                oninput="vatRecalcTotal('{{ $r->id }}', {{ $balance }})"
                                 class="border border-gray-200 rounded px-3 py-1.5 text-sm w-32"
                                 placeholder="0.00">
                         </div>
@@ -300,7 +300,7 @@
                         <div>
                             <label class="text-xs text-gray-500 block mb-1">Payment Source</label>
                             <select name="payment_source"
-                                onchange="vatPaySource('{{ $r->id }}', this.value, {{ $r->box13_net_payable }}, {{ $periodPenalties }})"
+                                onchange="vatPaySource('{{ $r->id }}', this.value, {{ $balance }}, 0)"
                                 class="border border-gray-200 rounded px-3 py-1.5 text-sm bg-white">
                                 <option value="bank">Bank Transfer</option>
                                 <option value="owner_card">Owner's Card / SCA</option>
