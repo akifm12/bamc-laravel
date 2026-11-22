@@ -1,5 +1,5 @@
-@extends('layouts.app')
-@section('title', 'Account Statement — ' . $customer->name)
+﻿@extends('layouts.app')
+@section('title', 'Account Statement - ' . $customer->name)
 @section('content')
 
 <div class="max-w-5xl">
@@ -76,7 +76,7 @@
                 <!-- Opening balance row -->
                 <tr class="bg-blue-50 border-b border-blue-100 font-medium">
                     <td class="px-4 py-2 text-xs text-gray-500">{{ $dateFrom }}</td>
-                    <td class="px-4 py-2 text-xs text-gray-500">—</td>
+                    <td class="px-4 py-2 text-xs text-gray-500">-</td>
                     <td class="px-4 py-2 text-xs text-gray-500" colspan="2">Opening Balance</td>
                     <td class="px-4 py-2 text-right text-xs"></td>
                     <td class="px-4 py-2 text-right text-xs"></td>
@@ -106,10 +106,10 @@
                     </td>
                     <td class="px-4 py-2 text-xs text-gray-600">{{ $txn->description }}</td>
                     <td class="px-4 py-2 text-right text-xs {{ $txn->debit > 0 ? 'text-gray-800' : 'text-gray-300' }}">
-                        {{ $txn->debit > 0 ? number_format($txn->debit, 2) : '—' }}
+                        {{ $txn->debit > 0 ? number_format($txn->debit, 2) : '-' }}
                     </td>
                     <td class="px-4 py-2 text-right text-xs {{ $txn->credit > 0 ? 'text-green-700' : 'text-gray-300' }}">
-                        {{ $txn->credit > 0 ? number_format($txn->credit, 2) : '—' }}
+                        {{ $txn->credit > 0 ? number_format($txn->credit, 2) : '-' }}
                     </td>
                     <td class="px-4 py-2 text-right text-xs font-medium
                         {{ $txn->balance >= 0 ? 'text-gray-700' : 'text-green-700' }}">

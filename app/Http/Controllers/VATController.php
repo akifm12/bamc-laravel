@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers;
 
@@ -65,7 +65,7 @@ class VATController extends Controller
         }
         $allPeriods = array_reverse($allPeriods); // newest first
 
-        // Sales from invoices (subtotal only — no VAT)
+        // Sales from invoices (subtotal only - no VAT)
         $salesByMonth = DB::table('invoices')
             ->where('company_id', $companyId)
             ->where('is_deleted', false)
@@ -75,7 +75,7 @@ class VATController extends Controller
             ->get()
             ->keyBy(fn($r) => \Carbon\Carbon::parse($r->month)->format('Y-m'));
 
-        // Purchases from bills (subtotal only — no VAT)
+        // Purchases from bills (subtotal only - no VAT)
         $purchasesByMonth = DB::table('bills')
             ->where('company_id', $companyId)
             ->where('is_deleted', false)
@@ -85,7 +85,7 @@ class VATController extends Controller
             ->get()
             ->keyBy(fn($r) => \Carbon\Carbon::parse($r->month)->format('Y-m'));
 
-        // Output VAT from journal lines (credits to VAT output account) — same principle as trial balance
+        // Output VAT from journal lines (credits to VAT output account) - same principle as trial balance
         $vatOutputAcctId = $company->default_vat_output_id;
         $outputVatByMonth = DB::table('journal_lines as jl')
             ->join('journal_entries as je', 'je.id', '=', 'jl.journal_entry_id')
@@ -100,7 +100,7 @@ class VATController extends Controller
             ->get()
             ->keyBy(fn($r) => \Carbon\Carbon::parse($r->month)->format('Y-m'));
 
-        // Input VAT from journal lines (debits to VAT input account) — same principle as trial balance
+        // Input VAT from journal lines (debits to VAT input account) - same principle as trial balance
         $vatInputAcctId = $company->default_vat_input_id;
         $inputVatByMonth = DB::table('journal_lines as jl')
             ->join('journal_entries as je', 'je.id', '=', 'jl.journal_entry_id')
@@ -222,7 +222,7 @@ class VATController extends Controller
             $bankAmount = (float) ($request->bank_amount ?? 0);
             $surplusAmt = (float) ($request->surplus_amount ?? 0);
         } else {
-            // bank or owner_card — full cash amount = VAT + penalties
+            // bank or owner_card - full cash amount = VAT + penalties
             $bankAmount = (float) ($request->bank_amount ?? $totalDue);
         }
 
@@ -418,7 +418,7 @@ class VATController extends Controller
 
         $msg = $payJeId
             ? "Payment recorded. Journal entry {$jeNumber} created."
-            : "Payment recorded (offset from VAT surplus — no cash JE needed).";
+            : "Payment recorded (offset from VAT surplus - no cash JE needed).";
 
         return redirect('/vat')->with('success', $msg);
     }
@@ -603,7 +603,7 @@ class VATController extends Controller
             ->selectRaw('COALESCE(SUM(subtotal), 0) as standard_purchases')
             ->first();
 
-        // Output VAT from journal lines — same principle as trial balance
+        // Output VAT from journal lines - same principle as trial balance
         $outputVatData = DB::table('journal_lines as jl')
             ->join('journal_entries as je', 'je.id', '=', 'jl.journal_entry_id')
             ->where('je.company_id', $companyId)
@@ -616,7 +616,7 @@ class VATController extends Controller
             ->selectRaw('COALESCE(SUM(jl.credit_amount), 0) as output_vat')
             ->first();
 
-        // Input VAT from journal lines — same principle as trial balance
+        // Input VAT from journal lines - same principle as trial balance
         $inputVatData = DB::table('journal_lines as jl')
             ->join('journal_entries as je', 'je.id', '=', 'jl.journal_entry_id')
             ->where('je.company_id', $companyId)

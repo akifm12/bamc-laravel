@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 @section('title', 'Small Business Relief')
 @section('content')
 
@@ -26,7 +26,7 @@
             <li>Tax period ending on or before <strong>31 December 2026</strong></li>
             <li>Not a member of a Qualifying Multinational Enterprise (MNE) Group</li>
             <li>Not a Qualifying Free Zone Person</li>
-            <li>Must be elected — it is not automatic</li>
+            <li>Must be elected - it is not automatic</li>
         </ul>
         <p class="mt-2">SBR must be elected in the CT Return for each qualifying period separately.</p>
     </div>
@@ -90,7 +90,7 @@
                     @elseif($y['ctId'])
                         <span class="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Not elected</span>
                     @else
-                        <span class="text-xs text-gray-400">—</span>
+                        <span class="text-xs text-gray-400">-</span>
                     @endif
                 </td>
                 <td class="px-4 py-3 text-right">

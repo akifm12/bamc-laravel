@@ -1,5 +1,5 @@
-@extends('layouts.app')
-@section('title', 'Corporate Tax Return — ' . $year)
+﻿@extends('layouts.app')
+@section('title', 'Corporate Tax Return - ' . $year)
 @section('content')
 
 <div class="max-w-4xl">
@@ -23,8 +23,8 @@
         </div>
         <div class="text-right text-xs text-gray-500">
             <div>Taxpayer: <strong>{{ $company->name }}</strong></div>
-            <div>TRN: {{ $company->trn ?? '—' }}</div>
-            <div>TIN: {{ $company->tin ?? '—' }}</div>
+            <div>TRN: {{ $company->trn ?? '-' }}</div>
+            <div>TIN: {{ $company->tin ?? '-' }}</div>
         </div>
     </div>
     <div class="grid grid-cols-3 gap-4">
@@ -59,9 +59,9 @@
                 If elected, taxable income is treated as nil for this period.
             </p>
             @if($revenue > 3000000)
-                <p class="text-xs text-red-500 mt-1">⚠ Not eligible — revenue exceeds AED 3M (AED {{ number_format($revenue, 2) }})</p>
+                <p class="text-xs text-red-500 mt-1">⚠ Not eligible - revenue exceeds AED 3M (AED {{ number_format($revenue, 2) }})</p>
             @elseif($revenue > 0)
-                <p class="text-xs text-green-600 mt-1">✓ Eligible — revenue AED {{ number_format($revenue, 2) }} is within the AED 3M limit</p>
+                <p class="text-xs text-green-600 mt-1">✓ Eligible - revenue AED {{ number_format($revenue, 2) }} is within the AED 3M limit</p>
             @endif
         </div>
     </div>
@@ -71,7 +71,7 @@
 
 {{-- Section 1: Revenue --}}
 <div class="bg-white rounded-lg border border-gray-200 p-5 mb-4">
-    <h3 class="text-sm font-bold text-gray-700 mb-3 pb-2 border-b border-gray-100">Section 1 — Revenue</h3>
+    <h3 class="text-sm font-bold text-gray-700 mb-3 pb-2 border-b border-gray-100">Section 1 - Revenue</h3>
     <div class="flex items-center justify-between">
         <label class="text-sm text-gray-600">Total Revenue for the Tax Period (AED)</label>
         <input type="number" name="total_revenue" value="{{ number_format($revenue, 2, '.', '') }}"
@@ -82,7 +82,7 @@
 
 {{-- Section 2: Accounting Income --}}
 <div class="bg-white rounded-lg border border-gray-200 p-5 mb-4">
-    <h3 class="text-sm font-bold text-gray-700 mb-3 pb-2 border-b border-gray-100">Section 2 — Accounting Income / (Loss)</h3>
+    <h3 class="text-sm font-bold text-gray-700 mb-3 pb-2 border-b border-gray-100">Section 2 - Accounting Income / (Loss)</h3>
     <div class="flex items-center justify-between">
         <div>
             <label class="text-sm text-gray-600">Net Profit / (Loss) per Financial Statements (AED)</label>
@@ -98,7 +98,7 @@
 {{-- Section 3: Adjustments --}}
 <div class="bg-white rounded-lg border border-gray-200 overflow-hidden mb-4">
     <div class="px-5 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-        <h3 class="text-sm font-bold text-gray-700">Section 3 — Adjustments to Accounting Income</h3>
+        <h3 class="text-sm font-bold text-gray-700">Section 3 - Adjustments to Accounting Income</h3>
         <button type="button" onclick="addAdj()" class="text-xs bg-gray-700 text-white px-3 py-1 rounded hover:bg-gray-800">➕ Add Line</button>
     </div>
     <table class="w-full text-sm">
@@ -127,7 +127,7 @@
 
 {{-- Section 4: Taxable Income + Tax Calc --}}
 <div class="bg-white rounded-lg border border-gray-200 p-5 mb-4">
-    <h3 class="text-sm font-bold text-gray-700 mb-4 pb-2 border-b border-gray-100">Section 4 — Taxable Income & Tax Calculation</h3>
+    <h3 class="text-sm font-bold text-gray-700 mb-4 pb-2 border-b border-gray-100">Section 4 - Taxable Income & Tax Calculation</h3>
     <div class="space-y-3">
         <div class="flex justify-between items-center py-2 border-b border-gray-50">
             <span class="text-sm text-gray-600">Accounting Income / (Loss)</span>

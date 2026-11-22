@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('title', 'New Director Payment')
 
@@ -28,7 +28,7 @@
                 <select name="director_name" required
                     class="w-full border border-gray-200 rounded px-3 py-2 text-sm" id="directorSelect"
                     onchange="suggestAmount()">
-                    <option value="">— Select Director —</option>
+                    <option value="">- Select Director -</option>
                     <option value="Akif Mushtaq" {{ old('director_name') === 'Akif Mushtaq' ? 'selected' : '' }}>Akif Mushtaq</option>
                     <option value="Amita Parulekar" {{ old('director_name') === 'Amita Parulekar' ? 'selected' : '' }}>Amita Parulekar</option>
                 </select>

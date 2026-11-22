@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers;
 
@@ -340,7 +340,7 @@ class BankReconciliationController extends Controller
 
         $diff = abs((float)$recon->closing_balance_statement - $bookBalance);
         if ($diff > 1.00) {
-            return back()->with('error', "Cannot lock — difference of AED " . number_format($diff, 2) . " remains. Resolve all unmatched items first.");
+            return back()->with('error', "Cannot lock - difference of AED " . number_format($diff, 2) . " remains. Resolve all unmatched items first.");
         }
 
         DB::table('bank_reconciliations')->where('id', $id)->update([

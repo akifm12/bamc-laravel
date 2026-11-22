@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -123,8 +123,8 @@
                 <td><span class="{{ $txn->type === 'Invoice' ? 'type-inv' : 'type-pay' }}">{{ $txn->type }}</span></td>
                 <td class="ref">{{ $txn->reference }}</td>
                 <td>{{ $txn->description }}</td>
-                <td class="num">{{ $txn->debit > 0 ? number_format($txn->debit, 2) : '—' }}</td>
-                <td class="num {{ $txn->credit > 0 ? 'bal-cr' : '' }}">{{ $txn->credit > 0 ? number_format($txn->credit, 2) : '—' }}</td>
+                <td class="num">{{ $txn->debit > 0 ? number_format($txn->debit, 2) : '-' }}</td>
+                <td class="num {{ $txn->credit > 0 ? 'bal-cr' : '' }}">{{ $txn->credit > 0 ? number_format($txn->credit, 2) : '-' }}</td>
                 <td class="num {{ $txn->balance > 0 ? 'bal-dr' : ($txn->balance < 0 ? 'bal-cr' : 'bal-nil') }}">
                     {{ number_format(abs($txn->balance), 2) }}{{ $txn->balance < 0 ? ' Cr' : ($txn->balance > 0 ? ' Dr' : '') }}
                 </td>

@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('title', 'VAT Returns')
 
@@ -121,7 +121,7 @@
     <div>
         <p class="text-xs text-orange-600 font-semibold uppercase tracking-wide mb-1">⚠️ FTA Penalties Outstanding</p>
         <p class="text-2xl font-bold text-orange-700">AED {{ number_format($totalPendingPenalties, 2) }}</p>
-        <p class="text-xs text-orange-500 mt-1">{{ $pendingPenaltyBills->count() }} unpaid penalty bill(s) — enter an amount in the Penalties field when recording a VAT payment</p>
+        <p class="text-xs text-orange-500 mt-1">{{ $pendingPenaltyBills->count() }} unpaid penalty bill(s) - enter an amount in the Penalties field when recording a VAT payment</p>
     </div>
     <div class="text-right text-xs text-orange-600 shrink-0">
         @foreach($pendingPenaltyBills->take(8) as $pb)
@@ -278,7 +278,7 @@
                             <label class="text-xs text-gray-500 block mb-1">
                                 Penalties (AED)
                                 @if(($totalPendingPenalties ?? 0) > 0)
-                                <span class="text-orange-500 font-medium">— {{ number_format($totalPendingPenalties, 2) }} outstanding</span>
+                                <span class="text-orange-500 font-medium">- {{ number_format($totalPendingPenalties, 2) }} outstanding</span>
                                 @endif
                             </label>
                             <input type="number" name="penalty_amount" step="0.01"

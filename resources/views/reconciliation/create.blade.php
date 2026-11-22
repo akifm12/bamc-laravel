@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 @section('title', 'New Bank Reconciliation')
 @section('content')
 
@@ -30,7 +30,7 @@
                     <label class="text-xs text-gray-500 block mb-1">Bank Account <span class="text-red-500">*</span></label>
                     <select name="account_id" required
                         class="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-400">
-                        <option value="">— Select bank account —</option>
+                        <option value="">- Select bank account -</option>
                         @foreach($bankAccounts as $a)
                         <option value="{{ $a->id }}" {{ old('account_id') == $a->id ? 'selected' : '' }}>
                             {{ $a->name }} ({{ $a->account_code ?? 'No code' }})
@@ -95,7 +95,7 @@
         <!-- Notes -->
         <div class="px-6 py-5">
             <h3 class="text-sm font-semibold text-gray-700 mb-3">4. Notes (optional)</h3>
-            <textarea name="notes" rows="2" placeholder="e.g. November 2026 — RAKBANK current account"
+            <textarea name="notes" rows="2" placeholder="e.g. November 2026 - RAKBANK current account"
                 class="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-green-400">{{ old('notes') }}</textarea>
         </div>
 

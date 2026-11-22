@@ -1,5 +1,5 @@
-@extends('layouts.app')
-@section('title', 'CT Return — ' . $return->fiscal_year)
+﻿@extends('layouts.app')
+@section('title', 'CT Return - ' . $return->fiscal_year)
 @section('content')
 
 <div class="max-w-4xl">
@@ -13,7 +13,7 @@
 <div class="bg-white rounded-lg border border-gray-200 p-5 mb-4">
     <div class="flex items-start justify-between">
         <div>
-            <h2 class="text-lg font-bold text-gray-800">UAE Corporate Tax Return — {{ $return->fiscal_year }}</h2>
+            <h2 class="text-lg font-bold text-gray-800">UAE Corporate Tax Return - {{ $return->fiscal_year }}</h2>
             <p class="text-xs text-gray-500 mt-0.5">
                 Ref: {{ $return->return_number }} &nbsp;·&nbsp;
                 Period: {{ $return->period_start }} to {{ $return->period_end }}
@@ -32,8 +32,8 @@
     </div>
     <div class="mt-3 grid grid-cols-3 gap-4 text-xs text-gray-500">
         <div>Taxpayer: <strong class="text-gray-700">{{ $company->name }}</strong></div>
-        <div>TRN: <strong class="text-gray-700">{{ $company->trn ?? '—' }}</strong></div>
-        <div>TIN: <strong class="text-gray-700">{{ $company->tin ?? '—' }}</strong></div>
+        <div>TRN: <strong class="text-gray-700">{{ $company->trn ?? '-' }}</strong></div>
+        <div>TIN: <strong class="text-gray-700">{{ $company->tin ?? '-' }}</strong></div>
     </div>
 </div>
 
@@ -131,7 +131,7 @@
                     </span>
                 </td>
                 <td class="px-4 py-2 text-xs text-gray-600">{{ $adj->category }}</td>
-                <td class="px-4 py-2 text-xs text-gray-500">{{ $adj->description ?: '—' }}</td>
+                <td class="px-4 py-2 text-xs text-gray-500">{{ $adj->description ?: '-' }}</td>
                 <td class="px-4 py-2 text-right text-xs font-medium {{ $adj->type === 'ADD' ? 'text-red-600' : 'text-green-700' }}">
                     {{ $adj->type === 'ADD' ? '+' : '−' }} {{ number_format($adj->amount, 2) }}
                 </td>

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers;
 
@@ -533,7 +533,7 @@ public function importCustomers(Request $request)
         $importFrom   = $request->input('import_from')  ?: null; // YYYY-MM-DD or null = all
         $path = $request->file('file')->getPathname();
 
-        // Decompress gzip — .gnucash files are gzip-compressed XML
+        // Decompress gzip - .gnucash files are gzip-compressed XML
         $xmlStr = '';
         $gz = @gzopen($path, 'rb');
         if ($gz) {
@@ -638,7 +638,7 @@ public function importCustomers(Request $request)
             $ourType = $typeMap[$gnuType] ?? null;
             if (!$ourType) continue;
 
-            // Skip placeholder accounts — they are grouping containers, not transactional
+            // Skip placeholder accounts - they are grouping containers, not transactional
             if ($isPlaceholder($a)) continue;
 
             $guid       = $get($a, $actNs, 'id');
@@ -772,7 +772,7 @@ public function importCustomers(Request $request)
                 }
             }
 
-            // Skip GnuCash closing entries — they post net income to Retained Earnings;
+            // Skip GnuCash closing entries - they post net income to Retained Earnings;
             // the system will calculate and post closing entries via recalculateClosing()
             if ($touchesRetained) {
                 $skippedClosing++;

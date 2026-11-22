@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 @section('title', 'Dashboard')
 @section('content')
 
@@ -234,7 +234,7 @@ $dCash = dualSparkData($cashMonthlyBals, $lyDecBalance, $spW, $spH);
 
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4 flex-1">
             <div class="flex items-center justify-between mb-3">
-                <span class="section-label">Monthly Trend — 6 months</span>
+                <span class="section-label">Monthly Trend - 6 months</span>
                 <div class="flex gap-3 text-xs text-gray-400">
                     <span class="flex items-center gap-1.5"><span class="inline-block w-2 h-2 bg-green-500 rounded-sm"></span>Revenue</span>
                     <span class="flex items-center gap-1.5"><span class="inline-block w-2 h-2 bg-red-300 rounded-sm"></span>Expenses</span>
@@ -515,7 +515,7 @@ $dCash = dualSparkData($cashMonthlyBals, $lyDecBalance, $spW, $spH);
                 $isOvd   = $inv->due_date && $inv->due_date < $today;
                 $dayDiff = $inv->due_date ? (int)round((strtotime($inv->due_date) - strtotime($today)) / 86400) : null;
                 $dot     = $isOvd ? 'bg-red-500' : 'bg-orange-400';
-                $dueLbl  = $dayDiff === null ? '—'
+                $dueLbl  = $dayDiff === null ? '-'
                          : ($isOvd ? abs($dayDiff) . 'd overdue' : 'due in ' . $dayDiff . 'd');
                 $dueCls  = $isOvd ? 'text-red-500' : 'text-orange-500';
             @endphp

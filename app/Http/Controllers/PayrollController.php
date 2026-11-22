@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers;
 
@@ -482,7 +482,7 @@ class PayrollController extends Controller
             ->where('is_deleted', false)
             ->update(['is_deleted' => true, 'updated_at' => now()]);
 
-        if (!$rows) return back()->with('error', 'Cannot delete — not found or already posted.');
+        if (!$rows) return back()->with('error', 'Cannot delete - not found or already posted.');
         return redirect('/payroll?tab=directors')->with('success', 'Draft payment deleted.');
     }
 

@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('title', 'New Invoice')
 
@@ -67,7 +67,7 @@
 
         <!-- Transaction Type Flags (e-Invoice) -->
         <div class="mt-4 pt-4 border-t border-gray-100">
-            <p class="text-xs font-medium text-gray-500 mb-2">Transaction Type Flags <span class="text-gray-400 font-normal">(e-Invoice — check all that apply)</span></p>
+            <p class="text-xs font-medium text-gray-500 mb-2">Transaction Type Flags <span class="text-gray-400 font-normal">(e-Invoice - check all that apply)</span></p>
             <div class="grid grid-cols-4 gap-2">
                 @foreach([
                     ['free_trade_zone',    'Free Trade Zone',      0],

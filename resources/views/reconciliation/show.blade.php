@@ -1,5 +1,5 @@
-@extends('layouts.app')
-@section('title', 'Reconcile — ' . ($account->name ?? ''))
+﻿@extends('layouts.app')
+@section('title', 'Reconcile - ' . ($account->name ?? ''))
 @section('content')
 
 @php
@@ -134,14 +134,14 @@
                                 {{ \Carbon\Carbon::parse($sl->transaction_date)->format('d M') }}
                             </td>
                             <td class="px-3 py-2 text-gray-600 max-w-0" style="max-width:120px">
-                                <div class="truncate" title="{{ $sl->description }}">{{ $sl->description ?: '—' }}</div>
+                                <div class="truncate" title="{{ $sl->description }}">{{ $sl->description ?: '-' }}</div>
                                 @if($sl->reference)<div class="text-gray-400 truncate">{{ $sl->reference }}</div>@endif
                             </td>
                             <td class="px-3 py-2 text-right {{ $sl->debit_amount > 0 ? 'text-red-600 font-medium' : 'text-gray-300' }}">
-                                {{ $sl->debit_amount > 0 ? number_format($sl->debit_amount, 2) : '—' }}
+                                {{ $sl->debit_amount > 0 ? number_format($sl->debit_amount, 2) : '-' }}
                             </td>
                             <td class="px-3 py-2 text-right {{ $sl->credit_amount > 0 ? 'text-green-600 font-medium' : 'text-gray-300' }}">
-                                {{ $sl->credit_amount > 0 ? number_format($sl->credit_amount, 2) : '—' }}
+                                {{ $sl->credit_amount > 0 ? number_format($sl->credit_amount, 2) : '-' }}
                             </td>
                         </tr>
                         @endforeach
@@ -180,7 +180,7 @@
                     <div class="col-span-2">
                         <label class="text-gray-500 block mb-1">Statement Line</label>
                         <select name="stmt_id" required class="w-full border border-gray-200 rounded px-2 py-1 text-xs">
-                            <option value="">— Pick an unmatched line —</option>
+                            <option value="">- Pick an unmatched line -</option>
                             @foreach($unmatchedStmt as $sl)
                             <option value="{{ $sl->id }}">
                                 {{ \Carbon\Carbon::parse($sl->transaction_date)->format('d M') }}
@@ -199,7 +199,7 @@
                                 ->orderBy('name')->get();
                         @endphp
                         <select name="debit_account_id" required class="w-full border border-gray-200 rounded px-2 py-1 text-xs">
-                            <option value="">— Account —</option>
+                            <option value="">- Account -</option>
                             @foreach($allAccts as $ac)
                             <option value="{{ $ac->id }}">{{ $ac->name }}</option>
                             @endforeach
@@ -208,7 +208,7 @@
                     <div>
                         <label class="text-gray-500 block mb-1">Credit Account</label>
                         <select name="credit_account_id" required class="w-full border border-gray-200 rounded px-2 py-1 text-xs">
-                            <option value="">— Account —</option>
+                            <option value="">- Account -</option>
                             @foreach($allAccts as $ac)
                             <option value="{{ $ac->id }}" {{ $ac->id == $recon->account_id ? 'selected' : '' }}>
                                 {{ $ac->name }}
@@ -288,10 +288,10 @@
                             </div>
                         </td>
                         <td class="px-3 py-2 text-right {{ $jl->debit_amount > 0 ? 'text-blue-600 font-medium' : 'text-gray-300' }}">
-                            {{ $jl->debit_amount > 0 ? number_format($jl->debit_amount, 2) : '—' }}
+                            {{ $jl->debit_amount > 0 ? number_format($jl->debit_amount, 2) : '-' }}
                         </td>
                         <td class="px-3 py-2 text-right {{ $jl->credit_amount > 0 ? 'text-orange-600 font-medium' : 'text-gray-300' }}">
-                            {{ $jl->credit_amount > 0 ? number_format($jl->credit_amount, 2) : '—' }}
+                            {{ $jl->credit_amount > 0 ? number_format($jl->credit_amount, 2) : '-' }}
                         </td>
                     </tr>
                     @endforeach
@@ -342,21 +342,21 @@
                 <tr class="border-b border-gray-50 bg-green-50">
                     <td class="px-4 py-2 text-gray-600">{{ \Carbon\Carbon::parse($sl->transaction_date)->format('d M Y') }}</td>
                     <td class="px-4 py-2 text-gray-600">
-                        {{ $sl->description ?: '—' }}
+                        {{ $sl->description ?: '-' }}
                         @if($sl->reference)<span class="text-gray-400"> · {{ $sl->reference }}</span>@endif
                     </td>
                     <td class="px-4 py-2 text-right {{ $sl->debit_amount > 0 ? 'text-red-600' : 'text-gray-300' }}">
-                        {{ $sl->debit_amount > 0 ? number_format($sl->debit_amount, 2) : '—' }}
+                        {{ $sl->debit_amount > 0 ? number_format($sl->debit_amount, 2) : '-' }}
                     </td>
                     <td class="px-4 py-2 text-right {{ $sl->credit_amount > 0 ? 'text-green-600' : 'text-gray-300' }}">
-                        {{ $sl->credit_amount > 0 ? number_format($sl->credit_amount, 2) : '—' }}
+                        {{ $sl->credit_amount > 0 ? number_format($sl->credit_amount, 2) : '-' }}
                     </td>
                     <td class="px-4 py-2 text-gray-600">
                         @if($jlInfo)
                         <span class="font-medium">{{ $jlInfo->entry_number }}</span>
                         <span class="text-gray-400 ml-1">{{ Str::limit($jlInfo->entry_desc ?? '', 25) }}</span>
                         @else
-                        <span class="text-gray-400">—</span>
+                        <span class="text-gray-400">-</span>
                         @endif
                     </td>
                     @if(!$isLocked)

@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('title', 'Company Setup')
 
@@ -48,11 +48,11 @@
             <div>
                 <label class="text-xs text-gray-500 block mb-1">Legal Registration Type <span class="text-gray-400">(e-Invoice)</span></label>
                 <select name="seller_legal_reg_type" class="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
-                    <option value="">— Select —</option>
-                    <option value="TL"  {{ ($company->seller_legal_reg_type ?? '') == 'TL'  ? 'selected' : '' }}>TL — Commercial/Trade License</option>
-                    <option value="EID" {{ ($company->seller_legal_reg_type ?? '') == 'EID' ? 'selected' : '' }}>EID — Emirates ID</option>
-                    <option value="PAS" {{ ($company->seller_legal_reg_type ?? '') == 'PAS' ? 'selected' : '' }}>PAS — Passport</option>
-                    <option value="CD"  {{ ($company->seller_legal_reg_type ?? '') == 'CD'  ? 'selected' : '' }}>CD — Cabinet Decision</option>
+                    <option value="">- Select -</option>
+                    <option value="TL"  {{ ($company->seller_legal_reg_type ?? '') == 'TL'  ? 'selected' : '' }}>TL - Commercial/Trade License</option>
+                    <option value="EID" {{ ($company->seller_legal_reg_type ?? '') == 'EID' ? 'selected' : '' }}>EID - Emirates ID</option>
+                    <option value="PAS" {{ ($company->seller_legal_reg_type ?? '') == 'PAS' ? 'selected' : '' }}>PAS - Passport</option>
+                    <option value="CD"  {{ ($company->seller_legal_reg_type ?? '') == 'CD'  ? 'selected' : '' }}>CD - Cabinet Decision</option>
                 </select>
             </div>
             <div>
@@ -244,7 +244,7 @@
                 <p class="text-xs text-gray-400 mt-1">Additional providers can be added as needed.</p>
             </div>
             <div>
-                <label class="text-xs text-gray-500 block mb-1">Seller ID <span class="text-gray-400">(optional — Wafeq contact UUID)</span></label>
+                <label class="text-xs text-gray-500 block mb-1">Seller ID <span class="text-gray-400">(optional - Wafeq contact UUID)</span></label>
                 <input type="text" name="einvoicing_seller_id"
                     value="{{ old('einvoicing_seller_id', $company->einvoicing_seller_id) }}"
                     placeholder="Leave blank to use your Wafeq account default"
@@ -253,7 +253,7 @@
             <div class="col-span-2">
                 <label class="text-xs text-gray-500 block mb-1">
                     Wafeq Revenue Account Code
-                    <span class="text-gray-400">— use the account code from your Wafeq Chart of Accounts (e.g. 411 = Sales)</span>
+                    <span class="text-gray-400">- use the account code from your Wafeq Chart of Accounts (e.g. 411 = Sales)</span>
                 </label>
                 <input type="text" name="einvoicing_revenue_account_id"
                     value="{{ old('einvoicing_revenue_account_id', $company->einvoicing_revenue_account_id ?? '') }}"
@@ -271,7 +271,7 @@
             <div class="col-span-2">
                 <label class="text-xs text-gray-500 block mb-1">API Key</label>
                 @if($company->einvoicing_api_key)
-                <p class="text-xs text-green-600 mb-1">✅ Key saved on file — paste a new key below only if you want to replace it.</p>
+                <p class="text-xs text-green-600 mb-1">✅ Key saved on file - paste a new key below only if you want to replace it.</p>
                 @endif
                 <div class="flex gap-2">
                     <input type="password" name="einvoicing_api_key" id="einvoicing_api_key"
@@ -315,9 +315,9 @@ function fetchWafeqAccounts() {
         if (!accounts.length) { el.textContent = 'No accounts returned.'; return; }
         const getName = a => a.name_en || a.name || '(no name)';
         const posting = accounts.filter(a => a.is_posting === true);
-        el.innerHTML = '<strong>Revenue posting accounts — click an ID to select it:</strong><br>' +
+        el.innerHTML = '<strong>Revenue posting accounts - click an ID to select it:</strong><br>' +
             posting.map(a =>
-                `<code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;cursor:pointer;color:#1d4ed8" onclick="document.querySelector('[name=einvoicing_revenue_account_id]').value='${a.id}';this.style.background='#bbf7d0'">${a.id}</code> — [${a.account_code}] ${getName(a)}`
+                `<code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;cursor:pointer;color:#1d4ed8" onclick="document.querySelector('[name=einvoicing_revenue_account_id]').value='${a.id}';this.style.background='#bbf7d0'">${a.id}</code> - [${a.account_code}] ${getName(a)}`
             ).join('<br>') +
             '<br><span style="color:#6b7280">Pick a Revenue or Income type account and click Save.</span>' +
         '<br><br><strong>Raw sample (first 3 accounts):</strong><br><pre style="font-size:10px;background:#f3f4f6;padding:6px;border-radius:4px;overflow-x:auto">' + JSON.stringify(data.raw_sample, null, 2) + '</pre>';
@@ -367,7 +367,7 @@ function testEInvoiceConnection() {
         }
     })
     .catch(() => {
-        result.textContent = 'Network error — check console.';
+        result.textContent = 'Network error - check console.';
         result.className   = 'text-xs mt-1 text-red-600';
         result.classList.remove('hidden');
     })

@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 @section('title', 'Corporate Tax')
 @section('content')
 
@@ -17,7 +17,7 @@
 {{-- Current year estimate banner --}}
 <div class="mb-5 rounded-lg border border-blue-100 bg-blue-50 overflow-hidden">
     <div class="px-5 py-3 bg-blue-100 border-b border-blue-200 flex items-center justify-between">
-        <span class="font-semibold text-sm text-blue-800">Current Year Estimate — {{ $currentYear }}</span>
+        <span class="font-semibold text-sm text-blue-800">Current Year Estimate - {{ $currentYear }}</span>
         <span class="text-xs text-blue-600">Filing due: 30 Sep {{ $currentYear + 1 }}</span>
     </div>
     <div class="px-5 py-4 grid grid-cols-4 gap-6">
@@ -97,13 +97,13 @@
             <tr class="border-b border-gray-100 hover:bg-gray-50">
                 <td class="px-4 py-3 font-semibold text-gray-700">{{ $h['year'] }}</td>
                 <td class="px-4 py-3 text-right text-xs text-gray-600">
-                    {{ $h['revenue'] > 0 ? 'AED ' . number_format($h['revenue'], 2) : '—' }}
+                    {{ $h['revenue'] > 0 ? 'AED ' . number_format($h['revenue'], 2) : '-' }}
                     @if($h['sbrEligible'])
                         <br><span class="text-green-600 text-xs">SBR eligible</span>
                     @endif
                 </td>
                 <td class="px-4 py-3 text-right text-xs {{ $h['netProfit'] < 0 ? 'text-red-600' : 'text-gray-700' }}">
-                    {{ $h['netProfit'] != 0 ? 'AED ' . number_format($h['netProfit'], 2) : '—' }}
+                    {{ $h['netProfit'] != 0 ? 'AED ' . number_format($h['netProfit'], 2) : '-' }}
                 </td>
                 <td class="px-4 py-3 text-right text-xs text-gray-700">
                     @if($r)
@@ -113,11 +113,11 @@
                             AED {{ number_format($r->taxable_income, 2) }}
                         @endif
                     @else
-                        <span class="text-gray-400">—</span>
+                        <span class="text-gray-400">-</span>
                     @endif
                 </td>
                 <td class="px-4 py-3 text-right font-semibold text-xs {{ ($r?->ct_payable ?? 0) > 0 ? 'text-red-600' : 'text-gray-400' }}">
-                    {{ $r ? 'AED ' . number_format($r->ct_payable, 2) : '—' }}
+                    {{ $r ? 'AED ' . number_format($r->ct_payable, 2) : '-' }}
                 </td>
                 <td class="px-4 py-3 text-xs text-gray-500">{{ $h['due'] }}</td>
                 <td class="px-4 py-3 text-center">

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers;
 
@@ -457,7 +457,7 @@ class InvoiceController extends Controller
                 ]);
             });
 
-            // Submit to e-invoicing provider if enabled (non-blocking — failure doesn't roll back approval)
+            // Submit to e-invoicing provider if enabled (non-blocking - failure doesn't roll back approval)
             try {
                 (new EInvoiceService())->submitInvoice($id, $companyId);
             } catch (\Exception $e) {

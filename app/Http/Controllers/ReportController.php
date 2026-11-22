@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers;
 
@@ -760,7 +760,7 @@ class ReportController extends Controller
             ->select(
                 'payment_date as entry_date',
                 'return_number as entry_number',
-                DB::raw("CONCAT('VAT Return Settlement — ', return_number) as description"),
+                DB::raw("CONCAT('VAT Return Settlement - ', return_number) as description"),
                 DB::raw("'VAT Tax' as account_name"),
                 'amount_paid as debit_amount',
                 DB::raw('0 as credit_amount')
