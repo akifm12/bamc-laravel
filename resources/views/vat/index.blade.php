@@ -115,25 +115,29 @@
     @endif
 </div>
 
-<!-- FTA Penalties Outstanding Banner -->
-@if(($totalPendingPenalties ?? 0) > 0)
-<div class="mb-5 bg-orange-50 rounded-lg border border-orange-200 px-5 py-4 flex items-start justify-between gap-6">
-    <div>
+@php
+    $pendingReturnEntries = collect($history)->filter(fn($q) => isset($q['vatReturn']) && $q['vatReturn'] && $q['balance'] > 0.01);
+    $totalPendingReturns  = $pendingReturnEntries->sum('balance');
+    $pendingReturnCount   = $pendingReturnEntries->count();
+@endphp
+
+@if(($totalPendingPenalties ?? 0) > 0 || $totalPendingReturns > 0)
+<div class="mb-5 flex gap-4">
+    @if(($totalPendingPenalties ?? 0) > 0)
+    <div class="flex-1 bg-orange-50 rounded-lg border border-orange-200 px-5 py-4">
         <p class="text-xs text-orange-600 font-semibold uppercase tracking-wide mb-1">⚠️ FTA Penalties Outstanding</p>
         <p class="text-2xl font-bold text-orange-700">AED {{ number_format($totalPendingPenalties, 2) }}</p>
-        <p class="text-xs text-orange-500 mt-1">{{ $pendingPenaltyBills->count() }} unpaid penalty bill(s) - enter an amount in the Penalties field when recording a VAT payment</p>
+        <p class="text-xs text-orange-500 mt-1">{{ $pendingPenaltyBills->count() }} unpaid penalty bill(s) — enter amount in Penalties field when recording a VAT payment</p>
     </div>
-    <div class="text-right text-xs text-orange-600 shrink-0">
-        @foreach($pendingPenaltyBills->take(8) as $pb)
-        <div class="flex justify-between gap-6 mb-0.5">
-            <span class="text-gray-500">{{ $pb->bill_number }}</span>
-            <span class="font-medium">AED {{ number_format($pb->amount_due, 2) }}</span>
-        </div>
-        @endforeach
-        @if($pendingPenaltyBills->count() > 8)
-        <p class="text-orange-400 mt-1">+ {{ $pendingPenaltyBills->count() - 8 }} more...</p>
-        @endif
+    @endif
+
+    @if($totalPendingReturns > 0)
+    <div class="flex-1 bg-red-50 rounded-lg border border-red-200 px-5 py-4">
+        <p class="text-xs text-red-600 font-semibold uppercase tracking-wide mb-1">⏳ VAT Returns Pending Payment</p>
+        <p class="text-2xl font-bold text-red-700">AED {{ number_format($totalPendingReturns, 2) }}</p>
+        <p class="text-xs text-red-500 mt-1">{{ $pendingReturnCount }} filed return(s) with outstanding balance</p>
     </div>
+    @endif
 </div>
 @endif
 
