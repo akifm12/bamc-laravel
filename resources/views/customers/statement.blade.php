@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 @section('title', 'Account Statement - ' . $customer->name)
 @section('content')
 

@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 @section('title', 'Corporate Tax Return - ' . $year)
 @section('content')
 

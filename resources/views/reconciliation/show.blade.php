@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 @section('title', 'Reconcile - ' . ($account->name ?? ''))
 @section('content')
 

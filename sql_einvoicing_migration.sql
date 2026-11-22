@@ -1,4 +1,4 @@
-﻿-- E-Invoicing migration - run as: sudo -u postgres psql -d your_db_name -f sql_einvoicing_migration.sql
+-- E-Invoicing migration - run as: sudo -u postgres psql -d your_db_name -f sql_einvoicing_migration.sql
 
 ALTER TABLE companies
     ADD COLUMN IF NOT EXISTS einvoicing_enabled              BOOLEAN      NOT NULL DEFAULT FALSE,
