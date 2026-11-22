@@ -115,6 +115,28 @@
     @endif
 </div>
 
+<!-- FTA Penalties Outstanding Banner -->
+@if(($totalPendingPenalties ?? 0) > 0)
+<div class="mb-5 bg-orange-50 rounded-lg border border-orange-200 px-5 py-4 flex items-start justify-between gap-6">
+    <div>
+        <p class="text-xs text-orange-600 font-semibold uppercase tracking-wide mb-1">⚠️ FTA Penalties Outstanding</p>
+        <p class="text-2xl font-bold text-orange-700">AED {{ number_format($totalPendingPenalties, 2) }}</p>
+        <p class="text-xs text-orange-500 mt-1">{{ $pendingPenaltyBills->count() }} unpaid penalty bill(s) — enter an amount in the Penalties field when recording a VAT payment</p>
+    </div>
+    <div class="text-right text-xs text-orange-600 shrink-0">
+        @foreach($pendingPenaltyBills->take(8) as $pb)
+        <div class="flex justify-between gap-6 mb-0.5">
+            <span class="text-gray-500">{{ $pb->bill_number }}</span>
+            <span class="font-medium">AED {{ number_format($pb->amount_due, 2) }}</span>
+        </div>
+        @endforeach
+        @if($pendingPenaltyBills->count() > 8)
+        <p class="text-orange-400 mt-1">+ {{ $pendingPenaltyBills->count() - 8 }} more...</p>
+        @endif
+    </div>
+</div>
+@endif
+
 <!-- Historical Quarters -->
 <div class="mb-3 flex items-center justify-between">
     <p class="text-sm text-gray-500">All VAT quarters since registration</p>
@@ -141,10 +163,12 @@
         <tbody>
             @forelse($history as $q)
             @php
-                $hasActivity = $q['sales'] > 0 || $q['purchases'] > 0 || $q['vatReturn'];
-                $netDue      = $q['netDue'];
-                $balance     = $q['balance'];
-                $r           = $q['vatReturn'];
+                $hasActivity      = $q['sales'] > 0 || $q['purchases'] > 0 || $q['vatReturn'];
+                $netDue           = $q['netDue'];
+                $balance          = $q['balance'];
+                $r                = $q['vatReturn'];
+                $periodPenalties  = $q['periodPenalties'] ?? 0;
+                $penaltyPaid      = $q['penaltyPaid'] ?? 0;
 
                 if (!$hasActivity) {
                     $rowClass = 'bg-gray-50 text-gray-400';
@@ -234,18 +258,52 @@
             @if($r && strtolower($r->status) !== 'paid' && ($r->box13_net_payable ?? 0) > 0)
             <tr id="pay-modal-{{ $r->id }}" class="hidden bg-green-50 border-b border-green-100">
                 <td colspan="11" class="px-6 py-4">
+                    @php
+                        $vatAed      = number_format($r->box13_net_payable, 2, '.', '');
+                        $penAed      = '0.00'; // user enters penalty amount; total outstanding shown in the banner above
+                        $totalAed    = $vatAed;
+                    @endphp
                     <form method="POST" action="/vat/{{ $r->id }}/pay" class="flex flex-wrap items-end gap-4">
                         @csrf
-                        @php $netAed = number_format($r->box13_net_payable, 2, '.', ''); @endphp
+
+                        {{-- VAT amount display (read-only) --}}
+                        <div>
+                            <label class="text-xs text-gray-500 block mb-1">VAT Payable (AED)</label>
+                            <input type="text" value="{{ $vatAed }}" readonly
+                                class="border border-gray-100 bg-gray-50 rounded px-3 py-1.5 text-sm w-32 text-gray-500 cursor-default">
+                        </div>
+
+                        {{-- Penalties field --}}
+                        <div>
+                            <label class="text-xs text-gray-500 block mb-1">
+                                Penalties (AED)
+                                @if(($totalPendingPenalties ?? 0) > 0)
+                                <span class="text-orange-500 font-medium">— {{ number_format($totalPendingPenalties, 2) }} outstanding</span>
+                                @endif
+                            </label>
+                            <input type="number" name="penalty_amount" step="0.01"
+                                id="pay-penalty-{{ $r->id }}"
+                                value="{{ $penAed }}"
+                                oninput="vatRecalcTotal('{{ $r->id }}', {{ $r->box13_net_payable }})"
+                                class="border border-gray-200 rounded px-3 py-1.5 text-sm w-32"
+                                placeholder="0.00">
+                        </div>
+
+                        {{-- Total display --}}
+                        <div>
+                            <label class="text-xs text-gray-500 block mb-1">Total (AED)</label>
+                            <input type="text" id="pay-total-{{ $r->id }}" value="{{ $totalAed }}" readonly
+                                class="border border-gray-100 bg-gray-50 rounded px-3 py-1.5 text-sm w-36 text-gray-700 font-semibold cursor-default">
+                        </div>
 
                         {{-- Payment source --}}
                         <div>
                             <label class="text-xs text-gray-500 block mb-1">Payment Source</label>
                             <select name="payment_source"
-                                onchange="vatPaySource('{{ $r->id }}', this.value, {{ $r->box13_net_payable }})"
+                                onchange="vatPaySource('{{ $r->id }}', this.value, {{ $r->box13_net_payable }}, {{ $periodPenalties }})"
                                 class="border border-gray-200 rounded px-3 py-1.5 text-sm bg-white">
                                 <option value="bank">Bank Transfer</option>
-                                <option value="owner_card">Owner's Card</option>
+                                <option value="owner_card">Owner's Card / SCA</option>
                                 <option value="vat_surplus">VAT Tax Surplus</option>
                                 <option value="split">Split (Bank + Surplus)</option>
                             </select>
@@ -257,7 +315,7 @@
                                 <span id="pay-bank-lbl-{{ $r->id }}">Bank Amount (AED)</span>
                             </label>
                             <input type="number" name="bank_amount" step="0.01" id="pay-bank-amt-{{ $r->id }}"
-                                value="{{ $netAed }}"
+                                value="{{ $totalAed }}"
                                 class="border border-gray-200 rounded px-3 py-1.5 text-sm w-36">
                         </div>
 
@@ -296,12 +354,25 @@
 
 @push('scripts')
 <script>
-function vatPaySource(id, source, net) {
+function vatRecalcTotal(id, vatNet) {
+    const penEl   = document.getElementById('pay-penalty-' + id);
+    const totalEl = document.getElementById('pay-total-' + id);
+    const bankEl  = document.getElementById('pay-bank-amt-' + id);
+    const penalty = parseFloat(penEl?.value) || 0;
+    const total   = vatNet + penalty;
+    if (totalEl) totalEl.value = total.toFixed(2);
+    if (bankEl && bankEl.closest('#pay-bank-' + id)?.style.display !== 'none') {
+        bankEl.value = total.toFixed(2);
+    }
+}
+
+function vatPaySource(id, source, net, penalty) {
     const bankWrap    = document.getElementById('pay-bank-' + id);
     const surplusWrap = document.getElementById('pay-surplus-' + id);
     const bankAmt     = document.getElementById('pay-bank-amt-' + id);
     const surplusAmt  = document.getElementById('pay-surplus-amt-' + id);
     const bankLbl     = document.getElementById('pay-bank-lbl-' + id);
+    const total       = net + (parseFloat(penalty) || 0);
 
     if (source === 'vat_surplus') {
         bankWrap.classList.add('hidden');
@@ -312,13 +383,13 @@ function vatPaySource(id, source, net) {
         bankWrap.classList.remove('hidden');
         surplusWrap.classList.remove('hidden');
         bankLbl.textContent = 'Bank Amount (AED)';
-        bankAmt.value = net.toFixed(2);
+        bankAmt.value = total.toFixed(2);
         surplusAmt.value = '0';
     } else {
         bankWrap.classList.remove('hidden');
         surplusWrap.classList.add('hidden');
-        bankLbl.textContent = source === 'owner_card' ? "Owner's Card Amount (AED)" : 'Bank Amount (AED)';
-        bankAmt.value = net.toFixed(2);
+        bankLbl.textContent = source === 'owner_card' ? "Owner's Card / SCA Amount (AED)" : 'Bank Amount (AED)';
+        bankAmt.value = total.toFixed(2);
         surplusAmt.value = '0';
     }
 }

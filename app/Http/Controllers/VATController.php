@@ -132,6 +132,18 @@ class VATController extends Controller
             ->groupByRaw("je.entry_date::date")
             ->get();
 
+        // Pending FTA penalty bills from bills table (more accurate than the JE date-window heuristic)
+        $pendingPenaltyBills = $vatPenaltyAcctId ? DB::table('bills as b')
+            ->join('bill_lines as bl', 'bl.bill_id', '=', 'b.id')
+            ->where('b.company_id', $companyId)
+            ->where('b.is_deleted', false)
+            ->whereIn('b.status', ['APPROVED', 'PARTIAL'])
+            ->where('bl.account_id', $vatPenaltyAcctId)
+            ->select('b.id', 'b.bill_number', 'b.bill_date', 'b.amount_due', 'b.notes')
+            ->orderBy('b.bill_date')
+            ->get() : collect();
+        $totalPendingPenalties = (float) $pendingPenaltyBills->sum('amount_due');
+
         // Roll monthly data into each quarter
         $history = collect($allPeriods)->map(function ($period) use ($salesByMonth, $purchasesByMonth, $outputVatByMonth, $inputVatByMonth, $returns, $penaltiesByPeriod) {
             $from = \Carbon\Carbon::parse($period['from']);
@@ -172,7 +184,8 @@ class VATController extends Controller
             'returns', 'company',
             'currentPeriod', 'prevPeriod',
             'currentVAT', 'currentReturn',
-            'daysUntilDue', 'history'
+            'daysUntilDue', 'history',
+            'totalPendingPenalties', 'pendingPenaltyBills'
         ));
     }
 
@@ -235,11 +248,29 @@ class VATController extends Controller
                 ->where('code', '2301')
                 ->value('id') ?: 674;
 
-            // Penalty clearing account: the SCA account used in penalty JEs (code 5300)
-            $penaltyClearingAcctId = (int) DB::table('accounts')
-                ->where('company_id', $companyId)
-                ->where('code', '5300')
-                ->value('id');
+            // Penalty clearing: for bill-based workflows debit the AP account that penalty bill JEs credit
+            // (finds the credit side of a PURCHASE JE that has a 4307-penalty debit line)
+            // Falls back to code 5300 for JE-only penalty setups.
+            $penaltyAcctId = DB::table('accounts')
+                ->where('company_id', $companyId)->where('code', '4307')->value('id');
+            $penaltyClearingAcctId = $penaltyAcctId ? (int) DB::table('journal_lines as jl')
+                ->join('journal_entries as je', 'je.id', '=', 'jl.journal_entry_id')
+                ->where('je.company_id', $companyId)
+                ->where('je.is_deleted', false)
+                ->where('je.journal_type', 'PURCHASE')
+                ->whereExists(function ($q) use ($companyId, $penaltyAcctId) {
+                    $q->select(DB::raw(1))
+                      ->from('journal_lines as jl2')
+                      ->whereColumn('jl2.journal_entry_id', 'je.id')
+                      ->where('jl2.account_id', $penaltyAcctId)
+                      ->where('jl2.debit_amount', '>', 0);
+                })
+                ->where('jl.credit_amount', '>', 0)
+                ->value('jl.account_id') : 0;
+            if (!$penaltyClearingAcctId) {
+                $penaltyClearingAcctId = (int) DB::table('accounts')
+                    ->where('company_id', $companyId)->where('code', '5300')->value('id');
+            }
 
             if ($source === 'owner_card') {
                 $creditAcctId   = $penaltyClearingAcctId ?: 1733;
@@ -342,6 +373,45 @@ class VATController extends Controller
                 'notes'                     => implode("\n", $noteLines),
                 'updated_at'                => now(),
             ]);
+
+        // Mark FTA penalty bills as PAID oldest-first up to the penalty amount recorded
+        if ($penaltyAmt > 0) {
+            $penaltyAcctId = $penaltyAcctId ?? DB::table('accounts')
+                ->where('company_id', $companyId)->where('code', '4307')->value('id');
+            if ($penaltyAcctId) {
+                $pendingBills = DB::table('bills as b')
+                    ->join('bill_lines as bl', 'bl.bill_id', '=', 'b.id')
+                    ->where('b.company_id', $companyId)
+                    ->where('b.is_deleted', false)
+                    ->whereIn('b.status', ['APPROVED', 'PARTIAL'])
+                    ->where('bl.account_id', $penaltyAcctId)
+                    ->select('b.id', 'b.amount_due', 'b.amount_paid', 'b.total_amount')
+                    ->orderBy('b.bill_date')
+                    ->get();
+
+                $remaining = $penaltyAmt;
+                foreach ($pendingBills as $pb) {
+                    if ($remaining <= 0) break;
+                    if ($remaining >= $pb->amount_due) {
+                        DB::table('bills')->where('id', $pb->id)->where('company_id', $companyId)->update([
+                            'status'      => 'PAID',
+                            'amount_paid' => $pb->total_amount,
+                            'amount_due'  => 0,
+                            'updated_at'  => now(),
+                        ]);
+                        $remaining -= $pb->amount_due;
+                    } else {
+                        DB::table('bills')->where('id', $pb->id)->where('company_id', $companyId)->update([
+                            'status'      => 'PARTIAL',
+                            'amount_paid' => $pb->amount_paid + $remaining,
+                            'amount_due'  => $pb->amount_due - $remaining,
+                            'updated_at'  => now(),
+                        ]);
+                        $remaining = 0;
+                    }
+                }
+            }
+        }
 
         $msg = $payJeId
             ? "Payment recorded. Journal entry {$jeNumber} created."
