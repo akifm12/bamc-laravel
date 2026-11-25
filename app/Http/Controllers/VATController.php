@@ -100,15 +100,15 @@ class VATController extends Controller
             ->get()
             ->keyBy(fn($r) => \Carbon\Carbon::parse($r->month)->format('Y-m'));
 
-        // Input VAT from journal lines (debits to VAT input account) - same principle as trial balance
-        $vatInputAcctId = $company->default_vat_input_id;
+        // Input VAT from journal lines (debits to VAT input account and child accounts)
+        $vatInputAcctIds = $this->getAccountAndDescendants($companyId, $company->default_vat_input_id);
         $inputVatByMonth = DB::table('journal_lines as jl')
             ->join('journal_entries as je', 'je.id', '=', 'jl.journal_entry_id')
             ->where('je.company_id', $companyId)
             ->where('je.is_deleted', false)
             ->where('je.status', 'POSTED')
             ->where('je.journal_type', '!=', 'CLOSING_ENTRY')
-            ->where('jl.account_id', $vatInputAcctId)
+            ->whereIn('jl.account_id', $vatInputAcctIds)
             ->where('jl.debit_amount', '>', 0)
             ->selectRaw("DATE_TRUNC('month', je.entry_date::date)::date AS month, SUM(jl.debit_amount) AS input_vat")
             ->groupByRaw("DATE_TRUNC('month', je.entry_date::date)")
@@ -616,14 +616,17 @@ class VATController extends Controller
             ->selectRaw('COALESCE(SUM(jl.credit_amount), 0) as output_vat')
             ->first();
 
-        // Input VAT from journal lines - same principle as trial balance
+        // Input VAT from journal lines — include the root account AND all child accounts
+        // (e.g. 4102 VAT On Bank Charges is a child of 1500 VAT Receivable)
+        $inputVatAccountIds = $this->getAccountAndDescendants($companyId, $company->default_vat_input_id);
+
         $inputVatData = DB::table('journal_lines as jl')
             ->join('journal_entries as je', 'je.id', '=', 'jl.journal_entry_id')
             ->where('je.company_id', $companyId)
             ->where('je.is_deleted', false)
             ->where('je.status', 'POSTED')
             ->where('je.journal_type', '!=', 'CLOSING_ENTRY')
-            ->where('jl.account_id', $company->default_vat_input_id)
+            ->whereIn('jl.account_id', $inputVatAccountIds)
             ->where('jl.debit_amount', '>', 0)
             ->whereBetween('je.entry_date', [$dateFrom, $dateTo])
             ->selectRaw('COALESCE(SUM(jl.debit_amount), 0) as input_vat')
@@ -639,5 +642,26 @@ class VATController extends Controller
             'standardSales', 'outputVatAmount',
             'standardPurchases', 'inputVatAmount', 'netVat'
         );
+    }
+
+    /**
+     * Return the given account ID plus all descendant IDs (recursive via parent_id).
+     */
+    private function getAccountAndDescendants(int $companyId, int $rootId): array
+    {
+        $all = [$rootId];
+        $queue = [$rootId];
+
+        while (!empty($queue)) {
+            $children = DB::table('accounts')
+                ->where('company_id', $companyId)
+                ->whereIn('parent_id', $queue)
+                ->pluck('id')
+                ->toArray();
+            $all   = array_merge($all, $children);
+            $queue = $children;
+        }
+
+        return array_unique($all);
     }
 }
