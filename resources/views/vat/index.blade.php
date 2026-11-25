@@ -121,7 +121,7 @@
     $pendingReturnCount   = $pendingReturnEntries->count();
 @endphp
 
-@if(($totalPendingPenalties ?? 0) > 0 || $totalPendingReturns > 0)
+@if(($totalPendingPenalties ?? 0) > 0 || $totalPendingReturns > 0 || ($surplusBalance ?? 0) > 0.01)
 <div class="mb-5 flex gap-4">
     @if(($totalPendingPenalties ?? 0) > 0)
     <div class="flex-1 bg-orange-50 rounded-lg border border-orange-200 px-5 py-4">
@@ -136,6 +136,14 @@
         <p class="text-xs text-red-600 font-semibold uppercase tracking-wide mb-1">⏳ VAT Returns Pending Payment</p>
         <p class="text-2xl font-bold text-red-700">AED {{ number_format($totalPendingReturns, 2) }}</p>
         <p class="text-xs text-red-500 mt-1">{{ $pendingReturnCount }} filed return(s) with outstanding balance</p>
+    </div>
+    @endif
+
+    @if(($surplusBalance ?? 0) > 0.01)
+    <div class="flex-1 bg-green-50 rounded-lg border border-green-200 px-5 py-4">
+        <p class="text-xs text-green-700 font-semibold uppercase tracking-wide mb-1">✅ VAT Surplus Available</p>
+        <p class="text-2xl font-bold text-green-700">AED {{ number_format($surplusBalance, 2) }}</p>
+        <p class="text-xs text-green-600 mt-1">Accumulated credit from refund quarters, net of amounts already offset. Select "VAT Tax Surplus" when paying a return.</p>
     </div>
     @endif
 </div>
@@ -325,7 +333,12 @@
 
                         {{-- Surplus amount (hidden by default; shown for vat_surplus, split) --}}
                         <div id="pay-surplus-{{ $r->id }}" class="hidden">
-                            <label class="text-xs text-gray-500 block mb-1">Surplus Amount (AED)</label>
+                            <label class="text-xs text-gray-500 block mb-1">
+                                Surplus Amount (AED)
+                                @if(($surplusBalance ?? 0) > 0.01)
+                                    <span class="ml-1 text-green-600 font-semibold">— {{ number_format($surplusBalance, 2) }} available</span>
+                                @endif
+                            </label>
                             <input type="number" name="surplus_amount" step="0.01" id="pay-surplus-amt-{{ $r->id }}"
                                 value="0"
                                 class="border border-gray-200 rounded px-3 py-1.5 text-sm w-36">

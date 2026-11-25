@@ -179,12 +179,23 @@ class VATController extends Controller
             ));
         });
 
+        // VAT surplus balance: sum of all refund quarters minus all surplus_used on payment quarters
+        $surplusBalance = (float) $returns->reduce(function ($carry, $r) {
+            if ((float) $r->box13_net_payable < 0) {
+                $carry += abs((float) $r->box13_net_payable);
+            }
+            $carry -= (float) ($r->surplus_used ?? 0);
+            return $carry;
+        }, 0.0);
+        $surplusBalance = max(0.0, round($surplusBalance, 2));
+
         return view('vat.index', compact(
             'returns', 'company',
             'currentPeriod', 'prevPeriod',
             'currentVAT', 'currentReturn',
             'daysUntilDue', 'history',
-            'totalPendingPenalties', 'pendingPenaltyBills'
+            'totalPendingPenalties', 'pendingPenaltyBills',
+            'surplusBalance'
         ));
     }
 
