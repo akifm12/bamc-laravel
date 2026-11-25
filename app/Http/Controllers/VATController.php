@@ -202,6 +202,9 @@ class VATController extends Controller
 
         $vatReturn = DB::table('vat_returns')->where('id', $id)->where('company_id', $companyId)->first();
         if (!$vatReturn) abort(404);
+        if ($vatReturn->status === 'PAID') {
+            return redirect('/vat')->with('info', 'This return is already marked as paid.');
+        }
 
         $source      = $request->payment_source;
         $payDate     = $request->payment_date;
