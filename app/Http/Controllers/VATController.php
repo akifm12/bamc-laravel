@@ -109,8 +109,7 @@ class VATController extends Controller
             ->where('je.status', 'POSTED')
             ->where('je.journal_type', '!=', 'CLOSING_ENTRY')
             ->whereIn('jl.account_id', $vatInputAcctIds)
-            ->where('jl.debit_amount', '>', 0)
-            ->selectRaw("DATE_TRUNC('month', je.entry_date::date)::date AS month, SUM(jl.debit_amount) AS input_vat")
+            ->selectRaw("DATE_TRUNC('month', je.entry_date::date)::date AS month, COALESCE(SUM(jl.debit_amount) - SUM(jl.credit_amount), 0) AS input_vat")
             ->groupByRaw("DATE_TRUNC('month', je.entry_date::date)")
             ->get()
             ->keyBy(fn($r) => \Carbon\Carbon::parse($r->month)->format('Y-m'));
@@ -627,9 +626,8 @@ class VATController extends Controller
             ->where('je.status', 'POSTED')
             ->where('je.journal_type', '!=', 'CLOSING_ENTRY')
             ->whereIn('jl.account_id', $inputVatAccountIds)
-            ->where('jl.debit_amount', '>', 0)
             ->whereBetween('je.entry_date', [$dateFrom, $dateTo])
-            ->selectRaw('COALESCE(SUM(jl.debit_amount), 0) as input_vat')
+            ->selectRaw('COALESCE(SUM(jl.debit_amount) - SUM(jl.credit_amount), 0) as input_vat')
             ->first();
 
         $standardSales     = $invoiceData->standard_sales ?? 0;
