@@ -241,8 +241,24 @@
                         -
                     @endif
                 </td>
-                <td class="px-4 py-2 text-right font-semibold text-xs {{ abs($balance) < 0.01 ? 'text-green-600' : 'text-red-600' }}">
-                    @if(!$hasActivity) - @elseif(abs($balance) < 0.01) ✅ Nil @else {{ number_format($balance, 2) }} @endif
+                @php
+                    $carryOut = $q['carryOut'] ?? 0;
+                    $displayBalance = $r ? $carryOut : $balance;
+                @endphp
+                <td class="px-4 py-2 text-right font-semibold text-xs">
+                    @if(!$hasActivity)
+                        @if(($q['carryIn'] ?? 0) < -0.01)
+                            <span class="text-green-600">{{ number_format(abs($q['carryIn']), 2) }} surplus b/f</span>
+                        @else
+                            -
+                        @endif
+                    @elseif(abs($displayBalance) < 0.01)
+                        <span class="text-green-600">✅ Nil</span>
+                    @elseif($displayBalance < 0)
+                        <span class="text-green-600 bg-green-50 px-1.5 py-0.5 rounded">{{ number_format(abs($displayBalance), 2) }} surplus c/f</span>
+                    @else
+                        <span class="text-red-600">{{ number_format($displayBalance, 2) }}</span>
+                    @endif
                 </td>
                 <td class="px-4 py-2 text-center">
                     <span class="text-xs px-2 py-0.5 rounded-full {{ $statusColor }}">{{ $statusLabel }}</span>

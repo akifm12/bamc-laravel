@@ -179,15 +179,23 @@ class VATController extends Controller
             ));
         });
 
-        // VAT surplus balance: sum of all refund quarters minus all surplus_used on payment quarters
-        $surplusBalance = (float) $returns->reduce(function ($carry, $r) {
-            if ((float) $r->box13_net_payable < 0) {
-                $carry += abs((float) $r->box13_net_payable);
-            }
-            $carry -= (float) ($r->surplus_used ?? 0);
-            return $carry;
-        }, 0.0);
-        $surplusBalance = max(0.0, round($surplusBalance, 2));
+        // Rolling carry-forward balance (oldest→newest).
+        // carry < 0 = surplus credit; carry > 0 = outstanding deficit.
+        // Cash movements only affect carry; surplus offsets cancel inside the same net.
+        $runningCarry = 0.0;
+        $historyChronological = $history->reverse()->map(function ($q) use (&$runningCarry) {
+            $netPayable  = (float) ($q['vatReturn'] ? $q['vatReturn']->box13_net_payable : $q['netDue']);
+            $surplusUsed = (float) ($q['vatReturn']->surplus_used ?? 0);
+            $amtPaid     = (float) ($q['vatReturn']->amount_paid ?? 0);
+            $bankPaid    = $amtPaid - $surplusUsed; // cash outflow only
+            $carryIn     = $runningCarry;
+            $runningCarry = round($runningCarry + $netPayable - $bankPaid, 2);
+            return array_merge($q, ['carryIn' => $carryIn, 'carryOut' => $runningCarry]);
+        })->reverse()->values();
+        $history = $historyChronological;
+
+        // VAT surplus balance: remaining credit (negative carry = surplus available)
+        $surplusBalance = max(0.0, round(-$runningCarry, 2));
 
         return view('vat.index', compact(
             'returns', 'company',
