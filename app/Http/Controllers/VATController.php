@@ -168,14 +168,20 @@ class VATController extends Controller
                 ->sum('penalty_total');
 
             $penaltyPaid = (float) ($vatReturn->penalty_amount_paid ?? 0);
-            // Balance is always GL-derived: net VAT from journal lines minus what was actually paid.
-            // box13_net_payable is kept as a reference of what was filed with FTA but does NOT
-            // drive the balance — this prevents divergence when correcting JEs are posted after filing.
-            $balance     = $netDue - $amountPaid;
+            // For filed returns: balance uses the filed amount (box13_net_payable) so the balance
+            // tracks exactly what was owed to FTA minus what was paid, regardless of GL adjustments.
+            // For unfiled periods: use live GL computation as the estimate.
+            $filedAmount = $vatReturn ? (float) $vatReturn->box13_net_payable : null;
+            $balance     = ($filedAmount ?? $netDue) - $amountPaid;
+
+            // netDisplay: what to show in the Net Due column.
+            // For filed returns show box13 (what was actually submitted to FTA).
+            // For unfiled periods show the GL estimate.
+            $netDisplay = $filedAmount ?? $netDue;
 
             return array_merge($period, compact(
-                'sales', 'outputVAT', 'purchases', 'inputVAT', 'netDue',
-                'vatReturn', 'amountPaid', 'balance', 'periodPenalties', 'penaltyPaid'
+                'sales', 'outputVAT', 'purchases', 'inputVAT', 'netDue', 'netDisplay',
+                'vatReturn', 'amountPaid', 'balance', 'periodPenalties', 'penaltyPaid', 'filedAmount'
             ));
         });
 
@@ -184,9 +190,9 @@ class VATController extends Controller
         // Cash movements only affect carry; surplus offsets cancel inside the same net.
         $runningCarry = 0.0;
         $historyChronological = $history->reverse()->map(function ($q) use (&$runningCarry) {
-            // Always use GL-derived netDue, never the filed box13 value.
-            // This ensures carry-forward is consistent whether a return is filed or not.
-            $netPayable  = (float) $q['netDue'];
+            // Carry-forward uses the filed amount (box13) for filed returns, GL estimate otherwise.
+            // This matches the balance calculation so the cumulative carry is consistent.
+            $netPayable  = (float) ($q['filedAmount'] ?? $q['netDue']);
             $surplusUsed = (float) ($q['vatReturn']->surplus_used ?? 0);
             $amtPaid     = (float) ($q['vatReturn']->amount_paid ?? 0);
             $bankPaid    = $amtPaid - $surplusUsed; // cash outflow only

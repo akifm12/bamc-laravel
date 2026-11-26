@@ -116,8 +116,9 @@
 </div>
 
 @php
-    // Count ALL periods with outstanding VAT — filed or not.
-    $pendingReturnEntries = collect($history)->filter(fn($q) => $q['balance'] > 0.01);
+    // Count periods with outstanding balances. Filed returns are authoritative; unfiled periods
+    // show GL estimates and are excluded so the banner shows only confirmed liabilities.
+    $pendingReturnEntries = collect($history)->filter(fn($q) => isset($q['vatReturn']) && $q['vatReturn'] && $q['balance'] > 0.01);
     $totalPendingReturns  = $pendingReturnEntries->sum('balance');
     $pendingReturnCount   = $pendingReturnEntries->count();
 @endphp
@@ -177,7 +178,7 @@
             @forelse($history as $q)
             @php
                 $hasActivity      = $q['sales'] > 0 || $q['purchases'] > 0 || $q['vatReturn'];
-                $netDue           = $q['netDue'];
+                $netDue           = $q['netDisplay']; // filed amount for filed returns, GL estimate for unfiled
                 $balance          = $q['balance'];
                 $r                = $q['vatReturn'];
                 $periodPenalties  = $q['periodPenalties'] ?? 0;
@@ -218,7 +219,13 @@
                     {{ $q['inputVAT'] > 0 ? number_format($q['inputVAT'], 2) : '-' }}
                 </td>
                 <td class="px-4 py-2 text-right font-semibold text-xs {{ $netDue > 0 ? 'text-red-600' : ($netDue < 0 ? 'text-green-600' : 'text-gray-400') }}">
-                    @if(abs($netDue) < 0.01) - @elseif($netDue < 0) ({{ number_format(abs($netDue), 2) }}) @else {{ number_format($netDue, 2) }} @endif
+                    @if(abs($netDue) < 0.01) -
+                    @elseif($netDue < 0) ({{ number_format(abs($netDue), 2) }})
+                    @else {{ number_format($netDue, 2) }}
+                    @endif
+                    @if(!$q['vatReturn'] && abs($netDue) > 0.01)
+                        <br><span class="text-[10px] font-normal text-gray-400">est.</span>
+                    @endif
                 </td>
                 <td class="px-4 py-2 text-right text-xs text-green-700">
                     @if(($q['amountPaid'] ?? 0) > 0)
