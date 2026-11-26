@@ -731,72 +731,91 @@ class ReportController extends Controller
         $dateFrom = $request->get('date_from', date('Y-01-01'));
         $dateTo   = $request->get('date_to',   date('Y-m-d'));
 
-        // --- Output VAT: one row per invoice that charged VAT ---
-        $invoiceLines = DB::table('invoices')
-            ->leftJoin('customers', 'customers.id', '=', 'invoices.customer_id')
-            ->where('invoices.company_id', $companyId)
-            ->where('invoices.is_deleted', false)
-            ->whereNotIn('invoices.status', ['VOID', 'DRAFT'])
-            ->where('invoices.total_vat_amount', '>', 0)
-            ->whereBetween('invoices.invoice_date', [$dateFrom, $dateTo])
-            ->select(
-                'invoices.invoice_date as entry_date',
-                'invoices.invoice_number as entry_number',
-                DB::raw("COALESCE(customers.name, 'Customer') as description"),
-                DB::raw("'VAT Tax' as account_name"),
-                DB::raw('0 as debit_amount'),
-                'invoices.total_vat_amount as credit_amount'
-            )
-            ->orderBy('invoices.invoice_date')
-            ->get();
+        $company = DB::table('companies')->where('id', $companyId)->first();
 
-        // --- Payments to FTA: one row per settled VAT return ---
+        // Resolve output + input account trees (same logic as VATController)
+        $outputAcctIds = $this->vatAccountDescendants($companyId, $company->default_vat_output_id ?? null);
+        $inputAcctIds  = $this->vatAccountDescendants($companyId, $company->default_vat_input_id  ?? null);
+
+        // --- Output VAT: GL credits to the output VAT account(s) ---
+        $outputGlLines = collect();
+        if (!empty($outputAcctIds)) {
+            $outputGlLines = DB::table('journal_lines as jl')
+                ->join('journal_entries as je', 'je.id', '=', 'jl.journal_entry_id')
+                ->join('accounts as a', 'a.id', '=', 'jl.account_id')
+                ->where('je.company_id', $companyId)
+                ->where('je.is_deleted', false)
+                ->where('je.status', 'POSTED')
+                ->where('je.journal_type', '!=', 'CLOSING_ENTRY')
+                ->whereIn('jl.account_id', $outputAcctIds)
+                ->where('jl.credit_amount', '>', 0)
+                ->whereBetween('je.entry_date', [$dateFrom, $dateTo])
+                ->select(
+                    'je.entry_date',
+                    'je.entry_number',
+                    DB::raw("COALESCE(NULLIF(je.description,''), je.narration, 'Journal Entry') as description"),
+                    'a.name as account_name',
+                    DB::raw('0 as debit_amount'),
+                    'jl.credit_amount'
+                )
+                ->orderBy('je.entry_date')
+                ->orderBy('je.entry_number')
+                ->get();
+        }
+
+        // --- FTA payments: VAT return settlements within the date range ---
         $paymentLines = DB::table('vat_returns')
             ->where('company_id', $companyId)
             ->where('is_deleted', false)
-            ->whereIn('status', ['PAID', 'SUBMITTED'])
             ->where('amount_paid', '>', 0)
             ->whereBetween('payment_date', [$dateFrom, $dateTo])
             ->select(
                 'payment_date as entry_date',
                 'return_number as entry_number',
                 DB::raw("CONCAT('VAT Return Settlement - ', return_number) as description"),
-                DB::raw("'VAT Tax' as account_name"),
+                DB::raw("'FTA Payment' as account_name"),
                 'amount_paid as debit_amount',
                 DB::raw('0 as credit_amount')
             )
             ->orderBy('payment_date')
             ->get();
 
-        // Combine invoice + payment rows into the output section
-        $outputLines = $invoiceLines->concat($paymentLines)->sortBy('entry_date')->values();
+        $outputLines = $outputGlLines->concat($paymentLines)->sortBy('entry_date')->values();
 
-        // --- Input VAT: one row per bill that had recoverable VAT ---
-        $inputLines = DB::table('bills')
-            ->leftJoin('vendors', 'vendors.id', '=', 'bills.vendor_id')
-            ->where('bills.company_id', $companyId)
-            ->where('bills.is_deleted', false)
-            ->whereNotIn('bills.status', ['VOID', 'DRAFT'])
-            ->where('bills.total_vat_amount', '>', 0)
-            ->whereBetween('bills.bill_date', [$dateFrom, $dateTo])
-            ->select(
-                'bills.bill_date as entry_date',
-                'bills.bill_number as entry_number',
-                DB::raw("COALESCE(vendors.name, 'Vendor') as description"),
-                DB::raw("'VAT Receivable' as account_name"),
-                'bills.total_vat_amount as debit_amount',
-                DB::raw('0 as credit_amount')
-            )
-            ->orderBy('bills.bill_date')
-            ->get();
+        // --- Input VAT: GL debits (and credits) to the input VAT account(s) ---
+        $inputLines = collect();
+        if (!empty($inputAcctIds)) {
+            $inputLines = DB::table('journal_lines as jl')
+                ->join('journal_entries as je', 'je.id', '=', 'jl.journal_entry_id')
+                ->join('accounts as a', 'a.id', '=', 'jl.account_id')
+                ->where('je.company_id', $companyId)
+                ->where('je.is_deleted', false)
+                ->where('je.status', 'POSTED')
+                ->where('je.journal_type', '!=', 'CLOSING_ENTRY')
+                ->whereIn('jl.account_id', $inputAcctIds)
+                ->where(function ($q) {
+                    $q->where('jl.debit_amount', '>', 0)->orWhere('jl.credit_amount', '>', 0);
+                })
+                ->whereBetween('je.entry_date', [$dateFrom, $dateTo])
+                ->select(
+                    'je.entry_date',
+                    'je.entry_number',
+                    DB::raw("COALESCE(NULLIF(je.description,''), je.narration, 'Journal Entry') as description"),
+                    'a.name as account_name',
+                    'jl.debit_amount',
+                    'jl.credit_amount'
+                )
+                ->orderBy('je.entry_date')
+                ->orderBy('je.entry_number')
+                ->get();
+        }
 
-        $outputVAT     = $invoiceLines->sum('credit_amount');
-        $vatPaidToGovt = $paymentLines->sum('debit_amount');
-        $inputVAT      = $inputLines->sum('debit_amount');
-        $inputRecovered = 0;
-
-        $netVATPayable = $outputVAT - $inputVAT;
-        $balance       = $netVATPayable - $vatPaidToGovt;
+        $outputVAT      = $outputGlLines->sum('credit_amount');
+        $vatPaidToGovt  = $paymentLines->sum('debit_amount');
+        $inputVAT       = $inputLines->sum('debit_amount') - $inputLines->sum('credit_amount');
+        $inputRecovered = $inputLines->sum('credit_amount');
+        $netVATPayable  = $outputVAT - $inputVAT;
+        $balance        = $netVATPayable - $vatPaidToGovt;
 
         return view('reports.vat_ledger', compact(
             'outputLines', 'inputLines',
@@ -805,5 +824,24 @@ class ReportController extends Controller
             'netVATPayable', 'balance',
             'dateFrom', 'dateTo'
         ));
+    }
+
+    private function vatAccountDescendants(int $companyId, ?int $rootId): array
+    {
+        if ($rootId === null) {
+            return [];
+        }
+        $all   = [$rootId];
+        $queue = [$rootId];
+        while (!empty($queue)) {
+            $children = DB::table('accounts')
+                ->where('company_id', $companyId)
+                ->whereIn('parent_id', $queue)
+                ->pluck('id')
+                ->toArray();
+            $all   = array_merge($all, $children);
+            $queue = $children;
+        }
+        return array_unique($all);
     }
 }
