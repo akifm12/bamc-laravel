@@ -676,8 +676,12 @@ class VATController extends Controller
     /**
      * Return the given account ID plus all descendant IDs (recursive via parent_id).
      */
-    private function getAccountAndDescendants(int $companyId, int $rootId): array
+    private function getAccountAndDescendants(int $companyId, ?int $rootId): array
     {
+        if ($rootId === null) {
+            return [];
+        }
+
         $all = [$rootId];
         $queue = [$rootId];
 
