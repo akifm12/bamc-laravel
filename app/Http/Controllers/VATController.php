@@ -86,14 +86,14 @@ class VATController extends Controller
             ->keyBy(fn($r) => \Carbon\Carbon::parse($r->month)->format('Y-m'));
 
         // Output VAT from journal lines (credits to VAT output account) - same principle as trial balance
-        $vatOutputAcctId = $company->default_vat_output_id;
+        $vatOutputAcctIds = $this->getAccountAndDescendants($companyId, $company->default_vat_output_id);
         $outputVatByMonth = DB::table('journal_lines as jl')
             ->join('journal_entries as je', 'je.id', '=', 'jl.journal_entry_id')
             ->where('je.company_id', $companyId)
             ->where('je.is_deleted', false)
             ->where('je.status', 'POSTED')
             ->where('je.journal_type', '!=', 'CLOSING_ENTRY')
-            ->where('jl.account_id', $vatOutputAcctId)
+            ->whereIn('jl.account_id', $vatOutputAcctIds)
             ->where('jl.credit_amount', '>', 0)
             ->selectRaw("DATE_TRUNC('month', je.entry_date::date)::date AS month, SUM(jl.credit_amount) AS output_vat")
             ->groupByRaw("DATE_TRUNC('month', je.entry_date::date)")
@@ -632,14 +632,15 @@ class VATController extends Controller
             ->selectRaw('COALESCE(SUM(subtotal), 0) as standard_purchases')
             ->first();
 
-        // Output VAT from journal lines - same principle as trial balance
+        // Output VAT from journal lines — root account AND all client sub-accounts
+        $outputVatAccountIds = $this->getAccountAndDescendants($companyId, $company->default_vat_output_id);
         $outputVatData = DB::table('journal_lines as jl')
             ->join('journal_entries as je', 'je.id', '=', 'jl.journal_entry_id')
             ->where('je.company_id', $companyId)
             ->where('je.is_deleted', false)
             ->where('je.status', 'POSTED')
             ->where('je.journal_type', '!=', 'CLOSING_ENTRY')
-            ->where('jl.account_id', $company->default_vat_output_id)
+            ->whereIn('jl.account_id', $outputVatAccountIds)
             ->where('jl.credit_amount', '>', 0)
             ->whereBetween('je.entry_date', [$dateFrom, $dateTo])
             ->selectRaw('COALESCE(SUM(jl.credit_amount), 0) as output_vat')
