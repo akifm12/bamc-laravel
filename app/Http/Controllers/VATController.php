@@ -168,10 +168,10 @@ class VATController extends Controller
                 ->sum('penalty_total');
 
             $penaltyPaid = (float) ($vatReturn->penalty_amount_paid ?? 0);
-            // Penalties paid separately as bills are NOT included in the VAT return balance
-            $penaltyForBalance = $penaltyPaid; // only what was explicitly recorded on this return
-            // Balance = VAT net payable + explicitly-recorded penalties - total paid
-            $balance     = ($vatReturn->box13_net_payable ?? $netDue) + $penaltyForBalance - $amountPaid;
+            // Balance is always GL-derived: net VAT from journal lines minus what was actually paid.
+            // box13_net_payable is kept as a reference of what was filed with FTA but does NOT
+            // drive the balance — this prevents divergence when correcting JEs are posted after filing.
+            $balance     = $netDue - $amountPaid;
 
             return array_merge($period, compact(
                 'sales', 'outputVAT', 'purchases', 'inputVAT', 'netDue',
@@ -184,7 +184,9 @@ class VATController extends Controller
         // Cash movements only affect carry; surplus offsets cancel inside the same net.
         $runningCarry = 0.0;
         $historyChronological = $history->reverse()->map(function ($q) use (&$runningCarry) {
-            $netPayable  = (float) ($q['vatReturn'] ? $q['vatReturn']->box13_net_payable : $q['netDue']);
+            // Always use GL-derived netDue, never the filed box13 value.
+            // This ensures carry-forward is consistent whether a return is filed or not.
+            $netPayable  = (float) $q['netDue'];
             $surplusUsed = (float) ($q['vatReturn']->surplus_used ?? 0);
             $amtPaid     = (float) ($q['vatReturn']->amount_paid ?? 0);
             $bankPaid    = $amtPaid - $surplusUsed; // cash outflow only
@@ -227,10 +229,10 @@ class VATController extends Controller
 
         $source      = $request->payment_source;
         $payDate     = $request->payment_date;
-        // Use remaining balance, not the original filed amount
+        // Remaining VAT balance = what was filed minus what has already been paid.
+        // penalty_amount_paid is tracked separately and must NOT be added back here.
         $netPayable  = max(0.0, (float) $vatReturn->box13_net_payable
-            - (float) ($vatReturn->amount_paid ?? 0)
-            + (float) ($vatReturn->penalty_amount_paid ?? 0));
+            - (float) ($vatReturn->amount_paid ?? 0));
         $penaltyAmt  = (float) ($request->penalty_amount ?? 0);
         $totalDue    = $netPayable + $penaltyAmt;
 

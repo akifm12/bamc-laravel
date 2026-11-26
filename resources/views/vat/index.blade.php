@@ -116,7 +116,8 @@
 </div>
 
 @php
-    $pendingReturnEntries = collect($history)->filter(fn($q) => isset($q['vatReturn']) && $q['vatReturn'] && $q['balance'] > 0.01);
+    // Count ALL periods with outstanding VAT — filed or not.
+    $pendingReturnEntries = collect($history)->filter(fn($q) => $q['balance'] > 0.01);
     $totalPendingReturns  = $pendingReturnEntries->sum('balance');
     $pendingReturnCount   = $pendingReturnEntries->count();
 @endphp
@@ -243,7 +244,9 @@
                 </td>
                 @php
                     $carryOut = $q['carryOut'] ?? 0;
-                    $displayBalance = $r ? $carryOut : $balance;
+                    // Always show the per-period GL balance (netDue - amountPaid).
+                    // carryOut is the cumulative outstanding across all periods — used by the surplus tracker only.
+                    $displayBalance = $balance;
                 @endphp
                 <td class="px-4 py-2 text-right font-semibold text-xs">
                     @if(!$hasActivity)
