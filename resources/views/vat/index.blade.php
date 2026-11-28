@@ -335,7 +335,7 @@
                         <div>
                             <label class="text-xs text-gray-500 block mb-1">Payment Source</label>
                             <select name="payment_source"
-                                onchange="vatPaySource('{{ $r->id }}', this.value, {{ $balance }}, 0)"
+                                onchange="vatPaySource('{{ $r->id }}', this.value, {{ $balance }}, 0, {{ $surplusBalance ?? 0 }})"
                                 class="border border-gray-200 rounded px-3 py-1.5 text-sm bg-white">
                                 <option value="bank">Bank Transfer</option>
                                 <option value="owner_card">Owner's Card / SCA</option>
@@ -363,7 +363,7 @@
                                 @endif
                             </label>
                             <input type="number" name="surplus_amount" step="0.01" id="pay-surplus-amt-{{ $r->id }}"
-                                value="0"
+                                value="0" max="{{ $surplusBalance ?? 0 }}"
                                 class="border border-gray-200 rounded px-3 py-1.5 text-sm w-36">
                         </div>
 
@@ -395,41 +395,58 @@
 @push('scripts')
 <script>
 function vatRecalcTotal(id, vatNet) {
-    const penEl   = document.getElementById('pay-penalty-' + id);
-    const totalEl = document.getElementById('pay-total-' + id);
-    const bankEl  = document.getElementById('pay-bank-amt-' + id);
-    const penalty = parseFloat(penEl?.value) || 0;
-    const total   = vatNet + penalty;
+    const penEl    = document.getElementById('pay-penalty-' + id);
+    const totalEl  = document.getElementById('pay-total-' + id);
+    const bankWrap = document.getElementById('pay-bank-' + id);
+    const bankEl   = document.getElementById('pay-bank-amt-' + id);
+    const penalty  = parseFloat(penEl?.value) || 0;
+    const total    = vatNet + penalty;
     if (totalEl) totalEl.value = total.toFixed(2);
-    if (bankEl && bankEl.closest('#pay-bank-' + id)?.style.display !== 'none') {
+    if (bankEl && bankWrap && !bankWrap.classList.contains('hidden')) {
         bankEl.value = total.toFixed(2);
     }
 }
 
-function vatPaySource(id, source, net, penalty) {
+function vatPaySource(id, source, net, penalty, availSurplus) {
     const bankWrap    = document.getElementById('pay-bank-' + id);
     const surplusWrap = document.getElementById('pay-surplus-' + id);
     const bankAmt     = document.getElementById('pay-bank-amt-' + id);
     const surplusAmt  = document.getElementById('pay-surplus-amt-' + id);
     const bankLbl     = document.getElementById('pay-bank-lbl-' + id);
     const total       = net + (parseFloat(penalty) || 0);
+    const avail       = parseFloat(availSurplus) || 0;
 
     if (source === 'vat_surplus') {
-        bankWrap.classList.add('hidden');
-        surplusWrap.classList.remove('hidden');
-        surplusAmt.value = net.toFixed(2);
-        bankAmt.value = '0';
+        // Cap surplus at what is actually available; if less than total, force split
+        const surplusUse = Math.min(avail, total);
+        if (surplusUse < total) {
+            // Not enough surplus to cover in full — auto-switch to split
+            bankWrap.classList.remove('hidden');
+            surplusWrap.classList.remove('hidden');
+            bankLbl.textContent = 'Bank Amount (AED)';
+            surplusAmt.value = surplusUse.toFixed(2);
+            bankAmt.value    = (total - surplusUse).toFixed(2);
+            // Update the select to show split
+            const sel = document.querySelector('[onchange*="vatPaySource(\'' + id + '\'"]');
+            if (sel) sel.value = 'split';
+        } else {
+            bankWrap.classList.add('hidden');
+            surplusWrap.classList.remove('hidden');
+            surplusAmt.value = surplusUse.toFixed(2);
+            bankAmt.value    = '0';
+        }
     } else if (source === 'split') {
         bankWrap.classList.remove('hidden');
         surplusWrap.classList.remove('hidden');
         bankLbl.textContent = 'Bank Amount (AED)';
-        bankAmt.value = total.toFixed(2);
-        surplusAmt.value = '0';
+        const surplusUse = Math.min(avail, total);
+        surplusAmt.value = surplusUse.toFixed(2);
+        bankAmt.value    = (total - surplusUse).toFixed(2);
     } else {
         bankWrap.classList.remove('hidden');
         surplusWrap.classList.add('hidden');
         bankLbl.textContent = source === 'owner_card' ? "Owner's Card / SCA Amount (AED)" : 'Bank Amount (AED)';
-        bankAmt.value = total.toFixed(2);
+        bankAmt.value    = total.toFixed(2);
         surplusAmt.value = '0';
     }
 }

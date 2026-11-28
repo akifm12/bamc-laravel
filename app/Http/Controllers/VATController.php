@@ -246,13 +246,25 @@ class VATController extends Controller
         $bankAmount = 0.0;
         $surplusAmt = 0.0;
         if ($source === 'vat_surplus') {
-            $surplusAmt = $netPayable;
+            // Read the surplus amount from the form; fall back to full net payable if not sent
+            $surplusAmt = (float) ($request->surplus_amount ?? $netPayable);
         } elseif ($source === 'split') {
             $bankAmount = (float) ($request->bank_amount ?? 0);
             $surplusAmt = (float) ($request->surplus_amount ?? 0);
         } else {
             // bank or owner_card - full cash amount = VAT + penalties
             $bankAmount = (float) ($request->bank_amount ?? $totalDue);
+        }
+
+        // Validate surplus against available balance (server-side, universal, multi-tenant safe)
+        if ($surplusAmt > 0) {
+            $availableSurplus = $this->computeSurplusBalance($companyId);
+            if ($surplusAmt > $availableSurplus + 0.01) {
+                return back()->withErrors(['amount' => sprintf(
+                    'Surplus amount (AED %.2f) exceeds the available surplus balance (AED %.2f). Please adjust the split.',
+                    $surplusAmt, $availableSurplus
+                )]);
+            }
         }
 
         if (abs(($bankAmount + $surplusAmt) - $totalDue) > 0.02) {
@@ -671,6 +683,33 @@ class VATController extends Controller
             'standardSales', 'outputVatAmount',
             'standardPurchases', 'inputVatAmount', 'netVat'
         );
+    }
+
+    /**
+     * Compute the available VAT surplus balance for a company.
+     * Rolls through all filed (non-draft) returns chronologically:
+     *   carry += box13_net_payable - (amount_paid - surplus_used)
+     * A negative carry means the company is owed a credit; that credit is the available surplus.
+     */
+    private function computeSurplusBalance(int $companyId): float
+    {
+        $filedReturns = DB::table('vat_returns')
+            ->where('company_id', $companyId)
+            ->where('is_deleted', false)
+            ->whereNotIn('status', ['DRAFT'])
+            ->orderBy('period_from')
+            ->get();
+
+        $carry = 0.0;
+        foreach ($filedReturns as $vr) {
+            $netPayable  = (float) ($vr->box13_net_payable ?? 0);
+            $amtPaid     = (float) ($vr->amount_paid ?? 0);
+            $surplusUsed = (float) ($vr->surplus_used ?? 0);
+            $bankPaid    = $amtPaid - $surplusUsed;
+            $carry       = round($carry + $netPayable - $bankPaid, 2);
+        }
+
+        return max(0.0, round(-$carry, 2));
     }
 
     /**
