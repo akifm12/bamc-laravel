@@ -335,7 +335,7 @@
                         <div>
                             <label class="text-xs text-gray-500 block mb-1">Payment Source</label>
                             <select name="payment_source"
-                                onchange="vatPaySource('{{ $r->id }}', this.value, {{ $balance }}, 0, {{ $surplusBalance ?? 0 }})"
+                                onchange="vatPaySource('{{ $r->id }}', this.value, {{ $balance }}, 0, {{ max(0, -($q['carryIn'] ?? 0)) }})"
                                 class="border border-gray-200 rounded px-3 py-1.5 text-sm bg-white">
                                 <option value="bank">Bank Transfer</option>
                                 <option value="owner_card">Owner's Card / SCA</option>
@@ -356,10 +356,11 @@
 
                         {{-- Surplus amount (hidden by default; shown for vat_surplus, split) --}}
                         <div id="pay-surplus-{{ $r->id }}" class="hidden">
+                            @php $rowSurplus = max(0, -($q['carryIn'] ?? 0)); @endphp
                             <label class="text-xs text-gray-500 block mb-1">
                                 Surplus Amount (AED)
-                                @if(($surplusBalance ?? 0) > 0.01)
-                                    <span class="ml-1 text-green-600 font-semibold">— {{ number_format($surplusBalance, 2) }} available</span>
+                                @if($rowSurplus > 0.01)
+                                    <span class="ml-1 text-green-600 font-semibold">— {{ number_format($rowSurplus, 2) }} available</span>
                                 @endif
                             </label>
                             <input type="number" name="surplus_amount" step="0.01" id="pay-surplus-amt-{{ $r->id }}"

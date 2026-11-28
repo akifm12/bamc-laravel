@@ -202,8 +202,9 @@ class VATController extends Controller
         })->reverse()->values();
         $history = $historyChronological;
 
-        // VAT surplus balance: remaining credit (negative carry = surplus available)
-        $surplusBalance = max(0.0, round(-$runningCarry, 2));
+        // VAT surplus balance: credit from PAID returns only (unpaid/draft returns
+        // are excluded so pending liabilities don't prematurely wipe out the credit).
+        $surplusBalance = $this->computeSurplusBalance($companyId);
 
         return view('vat.index', compact(
             'returns', 'company',
@@ -256,9 +257,10 @@ class VATController extends Controller
             $bankAmount = (float) ($request->bank_amount ?? $totalDue);
         }
 
-        // Validate surplus against available balance (server-side, universal, multi-tenant safe)
+        // Validate surplus against available balance (server-side, universal, multi-tenant safe).
+        // Pass period_from so only PAID returns before this return's period contribute to surplus.
         if ($surplusAmt > 0) {
-            $availableSurplus = $this->computeSurplusBalance($companyId);
+            $availableSurplus = $this->computeSurplusBalance($companyId, $vatReturn->period_from);
             if ($surplusAmt > $availableSurplus + 0.01) {
                 return back()->withErrors(['amount' => sprintf(
                     'Surplus amount (AED %.2f) exceeds the available surplus balance (AED %.2f). Please adjust the split.',
@@ -687,21 +689,29 @@ class VATController extends Controller
 
     /**
      * Compute the available VAT surplus balance for a company.
-     * Rolls through all filed (non-draft) returns chronologically:
-     *   carry += box13_net_payable - (amount_paid - surplus_used)
-     * A negative carry means the company is owed a credit; that credit is the available surplus.
+     *
+     * Only PAID returns contribute: a refund quarter (negative box13) with amount_paid=0
+     * leaves a credit in the carry; subsequent payments consume it. Unpaid or draft returns
+     * are excluded so pending liabilities don't prematurely zero out the credit.
+     *
+     * $beforePeriod (YYYY-MM-DD): when paying a specific return, pass its period_from so
+     * only returns before that period are included. This gives the surplus available
+     * specifically for that return, regardless of its own status.
      */
-    private function computeSurplusBalance(int $companyId): float
+    private function computeSurplusBalance(int $companyId, ?string $beforePeriod = null): float
     {
-        $filedReturns = DB::table('vat_returns')
+        $query = DB::table('vat_returns')
             ->where('company_id', $companyId)
             ->where('is_deleted', false)
-            ->whereNotIn('status', ['DRAFT'])
-            ->orderBy('period_from')
-            ->get();
+            ->where('status', 'PAID')
+            ->orderBy('period_from');
+
+        if ($beforePeriod !== null) {
+            $query->where('period_from', '<', $beforePeriod);
+        }
 
         $carry = 0.0;
-        foreach ($filedReturns as $vr) {
+        foreach ($query->get() as $vr) {
             $netPayable  = (float) ($vr->box13_net_payable ?? 0);
             $amtPaid     = (float) ($vr->amount_paid ?? 0);
             $surplusUsed = (float) ($vr->surplus_used ?? 0);
